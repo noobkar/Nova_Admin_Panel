@@ -1,0 +1,180 @@
+@import '../../styles/variables';
+@import '../../styles/mixins';
+
+.commission-management {
+  &__stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: $spacing-lg;
+    margin-bottom: $spacing-xl;
+  }
+  
+  &__stat {
+    @include flex(row, flex-start, center);
+    
+    &-icon {
+      @include flex-center;
+      width: 48px;
+      height: 48px;
+      border-radius: $border-radius-md;
+      margin-right: $spacing-md;
+      
+      &--total {
+        background: linear-gradient(135deg, #22d3ee, #0ea5e9);
+      }
+      
+      &--pending {
+        background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      }
+      
+      &--paid {
+        background: linear-gradient(135deg, #34d399, #10b981);
+      }
+      
+      &--affiliates {
+        background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+      }
+    }
+    
+    &-content {
+      flex: 1;
+    }
+    
+    &-value {
+      font-size: $font-size-xl;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: $spacing-xs;
+    }
+    
+    &-label {
+      font-size: $font-size-sm;
+      
+      .theme-dark & {
+        color: $text-muted-dark;
+      }
+      
+      .theme-light & {
+        color: $text-muted-light;
+      }
+    }
+  }
+
+  &__header {
+    @include flex-between;
+    margin-bottom: $spacing-lg;
+    flex-wrap: wrap;
+    gap: $spacing-md;
+  }
+
+  &__filters {
+    @include flex(row, flex-start, center);
+    flex-wrap: wrap;
+    gap: $spacing-md;
+  }
+
+  &__status-filters {
+    @include flex(row, flex-start, center);
+    gap: $spacing-xs;
+  }
+
+  &__period {
+    @include flex(row, flex-start, center);
+    gap: $spacing-xs;
+    
+    &-display {
+      @include flex(row, flex-start, center);
+      gap: $spacing-xs;
+    }
+  }
+
+  &__loading,
+  &__error,
+  &__empty {
+    @include flex-center;
+    height: 200px;
+    text-align: center;
+  }
+
+  &__error {
+    color: $error-color;
+  }
+
+  &__table-container {
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  &__table {
+    width: 100%;
+    border-collapse: collapse;
+    
+    th, td {
+      padding: $spacing-md;
+      text-align: left;
+    }
+    
+    th {
+      font-weight: 600;
+      
+      .theme-dark & {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      
+      .theme-light & {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+      }
+    }
+    
+    tr {
+      .theme-dark & {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      }
+      
+      .theme-light & {
+        border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+      }
+      
+      &:last-child {
+        border-bottom: none;
+      }
+    }
+  }
+
+  &__status {
+    display: inline-block;
+    padding: $spacing-xs $spacing-sm;
+    border-radius: $border-radius-full;
+    font-size: $font-size-xs;
+    font-weight: 500;
+    text-transform: capitalize;
+    
+    &--pending {
+      background-color: rgba($warning-color, 0.1);
+      color: $warning-color;
+    }
+    
+    &--paid {
+      background-color: rgba($success-color, 0.1);
+      color: $success-color;
+    }
+  }
+
+  &__transaction {
+    font-family: $font-family-mono;
+    font-size: $font-size-xs;
+    
+    .theme-dark & {
+      color: $text-muted-light;
+    }
+    
+    .theme-light & {
+      color: $text-muted-dark;
+    }
+  }
+
+  &__actions {
+    @include flex(row, flex-start, center);
+    gap: $spacing-xs;
+  }
+}

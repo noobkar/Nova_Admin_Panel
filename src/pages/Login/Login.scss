@@ -1,0 +1,70 @@
+@import '../../styles/variables';
+@import '../../styles/mixins';
+
+.login {
+  @include flex-center;
+  min-height: 100vh;
+  
+  .theme-dark & {
+    background-color: $bg-dark;
+    color: $text-light;
+  }
+  
+  .theme-light & {
+    background-color: $bg-light;
+    color: $text-dark;
+  }
+  
+  &__container {
+    width: 100%;
+    max-width: 400px;
+    margin: 0 auto;
+    padding: $spacing-xl;
+    border-radius: $border-radius-lg;
+    
+    .theme-dark & {
+      background-color: $card-bg-dark;
+      border: 1px solid $border-dark;
+    }
+    
+    .theme-light & {
+      background-color: $card-bg-light;
+      border: 1px solid $border-light;
+      box-shadow: $shadow-lg;
+    }
+  }
+  
+  &__header {
+    @include flex(column, center, center);
+    margin-bottom: $spacing-xl;
+  }
+  
+  &__logo {
+    color: $accent-color;
+    margin-bottom: $spacing-md;
+  }
+  
+  &__title {
+    @include heading-2;
+    text-align: center;
+  }
+  
+  &__form {
+    margin-bottom: $spacing-lg;
+    
+    &-title {
+      @include heading-3;
+      text-align: center;
+      margin-bottom: $spacing-lg;
+    }
+  }
+  
+  &__error {
+    background-color: $error-bg;
+    color: $error-color;
+    padding: $spacing-md;
+    border-radius: $border-radius-md;
+    margin-bottom: $spacing-md;
+    font-size: $font-size-sm;
+  }
+}

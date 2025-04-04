@@ -1,0 +1,78 @@
+// Color Palette
+$bg-dark: #121212;  // Dark background (zinc-900 equivalent)
+$bg-light: #fafafa; // Light background (zinc-50 equivalent)
+
+$card-bg-dark: #1e1e1e;  // Card background (zinc-800 equivalent)
+$card-bg-light: #ffffff; // Card background (white)
+
+// Alternative naming for consistency with component files
+$bg-card-dark: #1e1e1e;  // Same as card-bg-dark
+$bg-card-light: #ffffff; // Same as card-bg-light
+
+$sidebar-bg-dark: #000000; // Sidebar background (black)
+$sidebar-bg-light: #333333; // Sidebar background (zinc-800 equivalent)
+
+$text-light: #ffffff; // Text color on dark backgrounds
+$text-dark: #27272a;  // Text color on light backgrounds
+$text-color-dark: #27272a; // Alternative name for text-dark
+$text-color-light: #ffffff; // Alternative name for text-light
+$text-muted-dark: #71717a; // Muted text on dark backgrounds (zinc-500)
+$text-muted-light: #71717a; // Muted text on light backgrounds
+
+$border-dark: #333333;  // Border color (zinc-700 equivalent)
+$border-light: #e4e4e7; // Border color (zinc-200 equivalent)
+
+$primary-color: #22d3ee; // Primary color (cyan-400)
+$accent-color: #22d3ee; // Primary accent color (cyan-400) - same as primary for consistency
+$accent-hover: #06b6d4; // Hover state (cyan-500)
+$accent-gradient: linear-gradient(to right, #22d3ee, #3b82f6); // Gradient from cyan-400 to blue-500
+
+$success-color: #22c55e; // Green-500
+$success-bg: rgba(34, 197, 94, 0.1); // Green-500 with opacity
+
+$warning-color: #eab308; // Yellow-500
+$warning-bg: rgba(234, 179, 8, 0.1); // Yellow-500 with opacity
+
+$error-color: #ef4444; // Red-500
+$error-bg: rgba(239, 68, 68, 0.1); // Red-500 with opacity
+
+// Layout
+$sidebar-expanded-width: 272px; // 68rem (Nova design uses 72px)
+$sidebar-collapsed-width: 80px;  // 20px (Nova design uses 20px)
+$header-height: 80px; // 20px (Nova design uses 20px)
+$border-radius-sm: 8px;
+$border-radius-md: 12px;
+$border-radius-lg: 16px;
+$border-radius-full: 9999px;
+
+// Spacing
+$spacing-xs: 4px;
+$spacing-sm: 8px;
+$spacing-md: 16px;
+$spacing-lg: 24px;
+$spacing-xl: 32px;
+$spacing-2xl: 48px;
+$spacing-3xl: 64px;
+
+// Typography
+$font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+$font-family-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, Courier, monospace;
+$font-size-xs: 12px;
+$font-size-sm: 14px;
+$font-size-md: 16px;
+$font-size-base: 16px; // Same as font-size-md for consistency with naming in components
+$font-size-lg: 18px;
+$font-size-xl: 20px;
+$font-size-2xl: 24px;
+$font-size-3xl: 30px;
+
+// Transitions
+$transition-fast: 150ms ease;
+$transition-normal: 250ms ease;
+$transition-slow: 350ms ease;
+
+// Shadows
+$shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+$shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+$shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+$shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);

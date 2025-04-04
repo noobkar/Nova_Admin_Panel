@@ -1,0 +1,38 @@
+@import '../styles/variables';
+@import '../styles/mixins';
+
+.main-layout {
+  display: flex;
+  height: 100vh;
+  width: 100%;
+  overflow: hidden;
+  
+  .theme-dark & {
+    background-color: $bg-dark;
+    color: $text-light;
+  }
+  
+  .theme-light & {
+    background-color: $bg-light;
+    color: $text-dark;
+  }
+  
+  &__content {
+    flex: 1;
+    margin-left: $sidebar-expanded-width;
+    transition: margin-left $transition-normal;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    
+    .sidebar--collapsed + & {
+      margin-left: $sidebar-collapsed-width;
+    }
+  }
+  
+  &__main {
+    flex: 1;
+    padding: $spacing-xl $spacing-2xl;
+    overflow-y: auto;
+  }
+}

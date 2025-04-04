@@ -1,0 +1,123 @@
+@import '../../../styles/variables';
+@import '../../../styles/mixins';
+
+.button {
+  @include flex-center;
+  border: none;
+  font-weight: 500;
+  transition: all $transition-fast;
+  cursor: pointer;
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
+  // Variants
+  &--primary {
+    background: $accent-gradient;
+    color: $text-light;
+    
+    &:hover:not(:disabled) {
+      box-shadow: $shadow-md;
+      transform: translateY(-1px);
+    }
+    
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
+  }
+  
+  &--secondary {
+    .theme-dark & {
+      background-color: rgba(255, 255, 255, 0.1);
+      color: $text-light;
+      
+      &:hover:not(:disabled) {
+        background-color: rgba(255, 255, 255, 0.2);
+      }
+    }
+    
+    .theme-light & {
+      background-color: rgba(0, 0, 0, 0.05);
+      color: $text-dark;
+      
+      &:hover:not(:disabled) {
+        background-color: rgba(0, 0, 0, 0.1);
+      }
+    }
+  }
+  
+  &--outline {
+    background-color: transparent;
+    border: 1px solid;
+    
+    .theme-dark & {
+      border-color: $border-dark;
+      color: $text-light;
+      
+      &:hover:not(:disabled) {
+        border-color: $accent-color;
+        color: $accent-color;
+      }
+    }
+    
+    .theme-light & {
+      border-color: $border-light;
+      color: $text-dark;
+      
+      &:hover:not(:disabled) {
+        border-color: $accent-color;
+        color: $accent-color;
+      }
+    }
+  }
+  
+  &--text {
+    background-color: transparent;
+    color: $accent-color;
+    
+    &:hover:not(:disabled) {
+      text-decoration: underline;
+    }
+  }
+  
+  // Sizes
+  &--small {
+    font-size: $font-size-sm;
+    padding: $spacing-xs $spacing-md;
+    border-radius: $border-radius-sm;
+  }
+  
+  &--medium {
+    font-size: $font-size-md;
+    padding: $spacing-sm $spacing-lg;
+    border-radius: $border-radius-md;
+  }
+  
+  &--large {
+    font-size: $font-size-lg;
+    padding: $spacing-md $spacing-xl;
+    border-radius: $border-radius-md;
+  }
+  
+  // Width
+  &--full-width {
+    width: 100%;
+  }
+  
+  // Icon
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    &--left {
+      margin-right: $spacing-sm;
+    }
+    
+    &--right {
+      margin-left: $spacing-sm;
+    }
+  }
+}

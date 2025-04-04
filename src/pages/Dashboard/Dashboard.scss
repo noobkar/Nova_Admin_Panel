@@ -1,0 +1,368 @@
+@import '../../styles/variables';
+@import '../../styles/mixins';
+
+.dashboard {
+  &__stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: $spacing-lg;
+    margin-bottom: $spacing-xl;
+  }
+  
+  &__stat {
+    @include flex(row, flex-start, center);
+    
+    &-icon {
+      @include flex-center;
+      width: 48px;
+      height: 48px;
+      border-radius: $border-radius-md;
+      margin-right: $spacing-md;
+      
+      &--users {
+        background: linear-gradient(135deg, #22d3ee, #0ea5e9);
+      }
+      
+      &--servers {
+        background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+      }
+      
+      &--assignments {
+        background: linear-gradient(135deg, #34d399, #10b981);
+      }
+      
+      &--requests {
+        background: linear-gradient(135deg, #fbbf24, #f59e0b);
+      }
+    }
+    
+    &-content {
+      flex: 1;
+    }
+    
+    &-value {
+      font-size: $font-size-2xl;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: $spacing-xs;
+    }
+    
+    &-label {
+      font-size: $font-size-sm;
+      
+      .theme-dark & {
+        color: $text-muted-dark;
+      }
+      
+      .theme-light & {
+        color: $text-muted-light;
+      }
+    }
+  }
+  
+  &__main {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: $spacing-lg;
+    
+    @include tablet {
+      grid-template-columns: 1fr;
+    }
+    
+    @include mobile {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  &__graph {
+    &-controls {
+      display: flex;
+      gap: $spacing-xs;
+    }
+    
+    &-content {
+      height: 300px;
+      margin-top: $spacing-lg;
+    }
+    
+    &-placeholder {
+      height: 100%;
+      @include flex(column, center, center);
+      border-radius: $border-radius-md;
+      
+      .theme-dark & {
+        background-color: rgba(255, 255, 255, 0.05);
+      }
+      
+      .theme-light & {
+        background-color: rgba(0, 0, 0, 0.03);
+      }
+    }
+    
+    &-mock {
+      width: 100%;
+      height: 200px;
+      margin-top: $spacing-lg;
+      
+      &-bars {
+        @include flex(row, space-between, flex-end);
+        height: 100%;
+      }
+      
+      &-bar-group {
+        @include flex(column, flex-end, center);
+        height: 100%;
+        flex: 1;
+        position: relative;
+      }
+      
+      &-bar {
+        width: 20px;
+        border-radius: $border-radius-sm $border-radius-sm 0 0;
+        transition: height $transition-normal;
+        
+        &--primary {
+          background: linear-gradient(to top, #22d3ee, #0ea5e9);
+          margin-right: 2px;
+        }
+        
+        &--secondary {
+          background: linear-gradient(to top, #a78bfa, #8b5cf6);
+        }
+      }
+      
+      &-label {
+        font-size: $font-size-xs;
+        margin-top: $spacing-xs;
+        
+        .theme-dark & {
+          color: $text-muted-dark;
+        }
+        
+        .theme-light & {
+          color: $text-muted-light;
+        }
+      }
+    }
+  }
+  
+  &__servers {
+    margin-bottom: $spacing-lg;
+    
+    &-list {
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-md;
+    }
+  }
+  
+  &__server {
+    padding: $spacing-md 0;
+    border-bottom: 1px solid;
+    
+    .theme-dark & {
+      border-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .theme-light & {
+      border-color: rgba(0, 0, 0, 0.1);
+    }
+    
+    &:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+    
+    &-header {
+      @include flex-between;
+      margin-bottom: $spacing-sm;
+    }
+    
+    &-name {
+      font-weight: 600;
+      margin-bottom: $spacing-xs;
+    }
+    
+    &-uptime {
+      font-size: $font-size-xs;
+      
+      .theme-dark & {
+        color: $text-muted-dark;
+      }
+      
+      .theme-light & {
+        color: $text-muted-light;
+      }
+    }
+    
+    &-status {
+      @include flex(row, center, center);
+      font-size: $font-size-xs;
+      font-weight: 500;
+      padding: $spacing-xs $spacing-md;
+      border-radius: $border-radius-full;
+      
+      &-indicator {
+        width: 8px;
+        height: 8px;
+        border-radius: $border-radius-full;
+        margin-right: $spacing-xs;
+      }
+      
+      &--online {
+        background-color: rgba($success-color, 0.1);
+        color: $success-color;
+        
+        .dashboard__server-status-indicator {
+          background-color: $success-color;
+        }
+      }
+      
+      &--maintenance {
+        background-color: rgba($warning-color, 0.1);
+        color: $warning-color;
+        
+        .dashboard__server-status-indicator {
+          background-color: $warning-color;
+        }
+      }
+      
+      &--offline {
+        background-color: rgba($error-color, 0.1);
+        color: $error-color;
+        
+        .dashboard__server-status-indicator {
+          background-color: $error-color;
+        }
+      }
+    }
+    
+    &-load {
+      &-container {
+        @include flex(row, flex-start, center);
+      }
+      
+      &-bar {
+        flex: 1;
+        height: 6px;
+        border-radius: $border-radius-full;
+        overflow: hidden;
+        margin-right: $spacing-md;
+        
+        .theme-dark & {
+          background-color: rgba(255, 255, 255, 0.1);
+        }
+        
+        .theme-light & {
+          background-color: rgba(0, 0, 0, 0.1);
+        }
+      }
+      
+      &-progress {
+        height: 100%;
+        border-radius: $border-radius-full;
+        background: $accent-gradient;
+      }
+      
+      &-text {
+        font-size: $font-size-xs;
+        min-width: 60px;
+        text-align: right;
+        
+        .theme-dark & {
+          color: $text-muted-dark;
+        }
+        
+        .theme-light & {
+          color: $text-muted-light;
+        }
+      }
+    }
+  }
+  
+  &__activity {
+    &-list {
+      display: flex;
+      flex-direction: column;
+      gap: $spacing-md;
+    }
+    
+    &-item {
+      @include flex(row, flex-start, flex-start);
+      padding-bottom: $spacing-md;
+      border-bottom: 1px solid;
+      
+      .theme-dark & {
+        border-color: rgba(255, 255, 255, 0.1);
+      }
+      
+      .theme-light & {
+        border-color: rgba(0, 0, 0, 0.1);
+      }
+      
+      &:last-child {
+        border-bottom: none;
+        padding-bottom: 0;
+      }
+    }
+    
+    &-icon {
+      @include flex-center;
+      width: 32px;
+      height: 32px;
+      border-radius: $border-radius-md;
+      margin-right: $spacing-md;
+      flex-shrink: 0;
+      
+      &--warning {
+        background-color: rgba($warning-color, 0.1);
+        color: $warning-color;
+      }
+      
+      &--success {
+        background-color: rgba($success-color, 0.1);
+        color: $success-color;
+      }
+      
+      &--info {
+        background-color: rgba($accent-color, 0.1);
+        color: $accent-color;
+      }
+      
+      &--error {
+        background-color: rgba($error-color, 0.1);
+        color: $error-color;
+      }
+    }
+    
+    &-content {
+      flex: 1;
+    }
+    
+    &-message {
+      margin-bottom: $spacing-xs;
+    }
+    
+    &-time {
+      font-size: $font-size-xs;
+      
+      .theme-dark & {
+        color: $text-muted-dark;
+      }
+      
+      .theme-light & {
+        color: $text-muted-light;
+      }
+    }
+  }
+  
+  &__loading,
+  &__error {
+    @include flex-center;
+    height: 300px;
+    
+    &__error {
+      color: $error-color;
+    }
+  }
+}

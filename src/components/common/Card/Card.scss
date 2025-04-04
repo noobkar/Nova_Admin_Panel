@@ -1,0 +1,64 @@
+@import '../../../styles/variables';
+@import '../../../styles/mixins';
+
+.card {
+  @include card;
+  border-radius: $border-radius-lg;
+  overflow: hidden;
+  
+  // Padding variations
+  &--padding-small {
+    padding: $spacing-sm;
+  }
+  
+  &--padding-normal {
+    padding: $spacing-lg;
+  }
+  
+  &--padding-large {
+    padding: $spacing-xl;
+  }
+  
+  &--padding-none {
+    padding: 0;
+    
+    .card__header {
+      padding: $spacing-lg;
+    }
+    
+    .card__content {
+      padding: 0;
+    }
+  }
+  
+  // Card header
+  &__header {
+    @include flex-between;
+    margin-bottom: $spacing-lg;
+  }
+  
+  &__header-content {
+    flex: 1;
+  }
+  
+  &__title {
+    @include heading-3;
+    margin-bottom: $spacing-xs;
+  }
+  
+  &__subtitle {
+    @include text-sm;
+    
+    .theme-dark & {
+      color: $text-muted-dark;
+    }
+    
+    .theme-light & {
+      color: $text-muted-light;
+    }
+  }
+  
+  &__action {
+    margin-left: $spacing-md;
+  }
+}

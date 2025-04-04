@@ -1,0 +1,188 @@
+@import "variables";
+
+// Flexbox mixins
+@mixin flex($direction: row, $justify: flex-start, $align: stretch, $wrap: nowrap) {
+  display: flex;
+  flex-direction: $direction;
+  justify-content: $justify;
+  align-items: $align;
+  flex-wrap: $wrap;
+}
+
+@mixin flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+@mixin flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+// Card mixin
+@mixin card($padding: $spacing-lg, $radius: $border-radius-lg) {
+  border-radius: $radius;
+  padding: $padding;
+  transition: box-shadow $transition-normal, transform $transition-normal;
+  
+  .theme-dark & {
+    background-color: $card-bg-dark;
+    border: 1px solid $border-dark;
+  }
+  
+  .theme-light & {
+    background-color: $card-bg-light;
+    border: 1px solid $border-light;
+    box-shadow: $shadow-md;
+  }
+}
+
+// Button mixins
+@mixin button-base {
+  font-weight: 500;
+  border-radius: $border-radius-md;
+  padding: $spacing-sm $spacing-lg;
+  transition: all $transition-fast;
+  cursor: pointer;
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+}
+
+@mixin button-primary {
+  @include button-base;
+  background: $accent-gradient;
+  color: $text-light;
+  
+  &:hover:not(:disabled) {
+    box-shadow: $shadow-md;
+    transform: translateY(-1px);
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+}
+
+@mixin button-secondary {
+  @include button-base;
+  
+  .theme-dark & {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: $text-light;
+    
+    &:hover:not(:disabled) {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+  }
+  
+  .theme-light & {
+    background-color: rgba(0, 0, 0, 0.05);
+    color: $text-dark;
+    
+    &:hover:not(:disabled) {
+      background-color: rgba(0, 0, 0, 0.1);
+    }
+  }
+}
+
+// Typography mixins
+@mixin heading-1 {
+  font-size: $font-size-3xl;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+@mixin heading-2 {
+  font-size: $font-size-2xl;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+@mixin heading-3 {
+  font-size: $font-size-xl;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+@mixin text-sm {
+  font-size: $font-size-sm;
+  line-height: 1.5;
+}
+
+@mixin text-base {
+  font-size: $font-size-md;
+  line-height: 1.5;
+}
+
+// Status indicators
+@mixin status-indicator($color, $bg) {
+  display: inline-flex;
+  align-items: center;
+  padding: $spacing-xs $spacing-sm;
+  border-radius: $border-radius-full;
+  font-size: $font-size-xs;
+  font-weight: 500;
+  color: $color;
+  background-color: $bg;
+}
+
+@mixin status-success {
+  @include status-indicator($success-color, $success-bg);
+}
+
+@mixin status-warning {
+  @include status-indicator($warning-color, $warning-bg);
+}
+
+@mixin status-error {
+  @include status-indicator($error-color, $error-bg);
+}
+
+// Media queries
+@mixin mobile {
+  @media (max-width: 639px) {
+    @content;
+  }
+}
+
+@mixin tablet {
+  @media (min-width: 640px) and (max-width: 1023px) {
+    @content;
+  }
+}
+
+@mixin desktop {
+  @media (min-width: 1024px) {
+    @content;
+  }
+}
+
+// Theme transitions
+@mixin theme-transition {
+  transition: 
+    background-color $transition-normal,
+    color $transition-normal,
+    border-color $transition-normal,
+    box-shadow $transition-normal;
+}
+
+// Progress bars
+@mixin progress-bar {
+  width: 100%;
+  height: 6px;
+  background-color: rgba(128, 128, 128, 0.2);
+  border-radius: $border-radius-full;
+  overflow: hidden;
+  
+  .progress {
+    height: 100%;
+    border-radius: $border-radius-full;
+    background: $accent-gradient;
+    transition: width $transition-normal;
+  }
+}

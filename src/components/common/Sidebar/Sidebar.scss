@@ -1,0 +1,174 @@
+@import '../../../styles/variables';
+@import '../../../styles/mixins';
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: $sidebar-expanded-width;
+  height: 100vh;
+  @include flex(column, flex-start, stretch);
+  transition: width $transition-normal;
+  
+  .theme-dark & {
+    background-color: $sidebar-bg-dark;
+    color: $text-light;
+  }
+  
+  .theme-light & {
+    background-color: $sidebar-bg-light;
+    color: $text-light;
+  }
+  
+  &--collapsed {
+    width: $sidebar-collapsed-width;
+  }
+  
+  &__header {
+    @include flex-between;
+    height: $header-height;
+    padding: $spacing-lg $spacing-md;
+    margin-bottom: $spacing-lg;
+  }
+  
+  &__logo {
+    @include flex(row, flex-start, center);
+    
+    &-icon {
+      color: $accent-color;
+      margin-right: $spacing-sm;
+      
+      &--center {
+        margin: 0 auto;
+      }
+    }
+    
+    &-text {
+      font-size: $font-size-xl;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+    }
+  }
+  
+  &__toggle {
+    @include flex-center;
+    width: 36px;
+    height: 36px;
+    border-radius: $border-radius-md;
+    background-color: transparent;
+    border: none;
+    color: inherit;
+    cursor: pointer;
+    transition: background-color $transition-fast;
+    
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.1);
+    }
+  }
+  
+  &__nav {
+    flex-grow: 1;
+    padding: 0 $spacing-md;
+    overflow-y: auto;
+    
+    &-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    
+    &-item {
+      margin-bottom: $spacing-xs;
+    }
+    
+    &-link {
+      @include flex(row, flex-start, center);
+      padding: $spacing-md;
+      border-radius: $border-radius-lg;
+      text-decoration: none;
+      color: inherit;
+      transition: background-color $transition-fast;
+      
+      &:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+      }
+      
+      &--active {
+        background-color: $accent-color;
+        color: white;
+        
+        &:hover {
+          background-color: $accent-hover;
+        }
+      }
+    }
+    
+    &-icon {
+      @include flex-center;
+      margin-right: $spacing-md;
+      
+      .sidebar--collapsed & {
+        margin-right: 0;
+      }
+    }
+  }
+  
+  &__footer {
+    padding: $spacing-lg $spacing-md;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  &__user {
+    @include flex(row, flex-start, center);
+    margin-bottom: $spacing-lg;
+    
+    &-avatar {
+      @include flex-center;
+      width: 40px;
+      height: 40px;
+      border-radius: $border-radius-full;
+      background: $accent-gradient;
+      margin-right: $spacing-md;
+      
+      &--center {
+        margin: 0 auto $spacing-lg;
+      }
+    }
+    
+    &-info {
+      overflow: hidden;
+    }
+    
+    &-name {
+      font-weight: 600;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    
+    &-email {
+      font-size: $font-size-xs;
+      color: rgba(255, 255, 255, 0.7);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+  }
+  
+  &__logout {
+    @include flex-center;
+    width: 100%;
+    padding: $spacing-md;
+    border-radius: $border-radius-lg;
+    background-color: rgba(255, 255, 255, 0.1);
+    color: inherit;
+    border: none;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color $transition-fast;
+    
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.2);
+    }
+  }
+}
