@@ -1,281 +1,232 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Search, Check, X, DollarSign, Clock, AlertCircle, FileText, Eye } from 'react-feather';
 import { useApi } from '../../hooks/useApi';
-import { useNavigation } from '../../hooks/useNavigation';
 import { Card } from '../../components/common/Card/Card';
 import { Button } from '../../components/common/Button/Button';
 import { Input } from '../../components/common/Input/Input';
+import { Loading } from '../../components/common/Loading/Loading';
+import { EmptyState } from '../../components/common/EmptyState/EmptyState';
+import { ErrorMessage } from '../../components/common/ErrorMessage/ErrorMessage';
 import './WithdrawalManagement.scss';
 
 export const WithdrawalManagement = () => {
-  const navigate = useNavigate();
-  const { setCurrentPage } = useNavigation();
-  const { get, post, put, loading, error } = useApi();
-  
+  // State
   const [withdrawals, setWithdrawals] = useState([]);
-  const [affiliates, setAffiliates] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentWithdrawal, setCurrentWithdrawal] = useState(null);
   const [formData, setFormData] = useState({
-    status: 'approved',
-    admin_notes: '',
-    payment_details: ''
+    reason: '',
+    transaction_id: '',
+    notes: ''
+  });
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalCount: 0,
+    totalAmount: 0
   });
   const [stats, setStats] = useState({
     totalRequests: 0,
     pendingRequests: 0,
     approvedRequests: 0,
     rejectedRequests: 0,
+    completedRequests: 0,
     totalAmount: 0
   });
 
+  // API hooks
+  const { 
+    loading, 
+    error, 
+    fetchWithdrawalRequests, 
+    approveWithdrawalRequest,
+    rejectWithdrawalRequest,
+    completeWithdrawalRequest
+  } = useApi();
+
+  // Load withdrawals on mount and when filters change
   useEffect(() => {
-    setCurrentPage('Withdrawal Requests');
-    fetchAffiliates();
-    fetchWithdrawals();
-    fetchStats();
-  }, []);
+    loadWithdrawals(pagination.currentPage);
+  }, [selectedStatus]);
 
-  const fetchAffiliates = async () => {
+  // Load withdrawals function
+  const loadWithdrawals = async (page = 1) => {
     try {
-      // In a real app, you would fetch from your API
-      // const response = await get('/affiliates');
-      // setAffiliates(response.data);
+      const data = await fetchWithdrawalRequests(
+        page, 
+        10, 
+        selectedStatus !== 'all' ? selectedStatus : null
+      );
       
-      // Using mock data
-      setAffiliates([
-        { id: 1, name: 'Tech Bloggers Inc', email: 'partners@techbloggers.com' },
-        { id: 2, name: 'VPN Review Hub', email: 'affiliates@vpnreviewhub.com' },
-        { id: 4, name: 'Privacy Advocates Network', email: 'affiliates@privacyadvocates.net' },
-        { id: 5, name: 'Cyber Security Today', email: 'partners@cybersecuritytoday.com' }
-      ]);
-    } catch (err) {
-      console.error('Error fetching affiliates:', err);
-    }
-  };
-
-  const fetchWithdrawals = async () => {
-    try {
-      // In a real app, you would fetch from your API
-      // const response = await get('/withdrawals');
-      // setWithdrawals(response.data);
-      
-      // Using mock data
-      setWithdrawals([
-        { 
-          id: 1, 
-          affiliate_id: 1, 
-          amount: 350.50, 
-          status: 'pending', 
-          payment_method: 'paypal',
-          payment_details: 'payments@techbloggers.com',
-          requested_at: '2025-04-02T10:30:00Z',
-          processed_at: null,
-          admin_notes: '',
-          available_balance: 350.50
-        },
-        { 
-          id: 2, 
-          affiliate_id: 2, 
-          amount: 780.00, 
-          status: 'approved', 
-          payment_method: 'bank_transfer',
-          payment_details: 'IBAN: DE89370400440532013000',
-          requested_at: '2025-04-01T14:15:00Z',
-          processed_at: '2025-04-03T09:20:00Z',
-          admin_notes: 'Processed via batch transfer',
-          available_balance: 0
-        },
-        { 
-          id: 3, 
-          affiliate_id: 5, 
-          amount: 525.75, 
-          status: 'pending', 
-          payment_method: 'bank_transfer',
-          payment_details: 'IBAN: GB29NWBK60161331926819',
-          requested_at: '2025-04-03T16:45:00Z',
-          processed_at: null,
-          admin_notes: '',
-          available_balance: 525.75
-        },
-        { 
-          id: 4, 
-          affiliate_id: 4, 
-          amount: 120.25, 
-          status: 'rejected', 
-          payment_method: 'paypal',
-          payment_details: 'finance@privacyadvocates.net',
-          requested_at: '2025-04-02T11:50:00Z',
-          processed_at: '2025-04-02T15:10:00Z',
-          admin_notes: 'Account suspended due to policy violation',
-          available_balance: 120.25
-        },
-        { 
-          id: 5, 
-          affiliate_id: 1, 
-          amount: 250.75, 
-          status: 'completed', 
-          payment_method: 'paypal',
-          payment_details: 'payments@techbloggers.com',
-          requested_at: '2025-03-15T10:30:00Z',
-          processed_at: '2025-03-16T14:20:00Z',
-          admin_notes: 'Payment sent via PayPal',
-          available_balance: 0
+      if (data) {
+        if (data.data) {
+          setWithdrawals(data.data);
+        } else {
+          setWithdrawals([]);
         }
-      ]);
+        
+        if (data.meta) {
+          setPagination({
+            currentPage: data.meta.current_page,
+            totalPages: data.meta.total_pages,
+            totalCount: data.meta.total_count,
+            totalAmount: data.meta.total_amount || 0
+          });
+          
+          // Update stats based on meta data if available
+          // This is a simplified approach - in a real app, you might have a separate API endpoint for stats
+          const pendingRequests = data.data.filter(w => w.attributes.status === 'pending').length;
+          const approvedRequests = data.data.filter(w => w.attributes.status === 'approved').length;
+          const rejectedRequests = data.data.filter(w => w.attributes.status === 'rejected').length;
+          const completedRequests = data.data.filter(w => w.attributes.status === 'completed').length;
+          
+          setStats({
+            totalRequests: data.meta.total_count,
+            pendingRequests,
+            approvedRequests,
+            rejectedRequests,
+            completedRequests,
+            totalAmount: data.meta.total_amount || 0
+          });
+        }
+      } else {
+        setWithdrawals([]);
+      }
     } catch (err) {
-      console.error('Error fetching withdrawals:', err);
+      console.error('Error loading withdrawals:', err);
     }
   };
 
-  const fetchStats = async () => {
-    try {
-      // In a real app, you would fetch from your API
-      // const response = await get('/withdrawal-stats');
-      // setStats(response.data);
-      
-      // Using mock data - calculated from the withdrawals data
-      const totalRequests = withdrawals.length;
-      const pendingRequests = withdrawals.filter(w => w.status === 'pending').length;
-      const approvedRequests = withdrawals.filter(w => w.status === 'approved' || w.status === 'completed').length;
-      const rejectedRequests = withdrawals.filter(w => w.status === 'rejected').length;
-      const totalAmount = withdrawals.reduce((sum, w) => sum + w.amount, 0);
-      
-      setStats({
-        totalRequests,
-        pendingRequests,
-        approvedRequests,
-        rejectedRequests,
-        totalAmount
-      });
-    } catch (err) {
-      console.error('Error fetching stats:', err);
-    }
-  };
-
+  // Search handling
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
   };
+  
+  // Apply search with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Filter in the client-side since the API doesn't support searching
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
+  // Status filter handling
   const handleStatusFilter = (status) => {
     setSelectedStatus(status);
   };
 
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  // Open modal with specific action
+  const handleOpenModal = (withdrawal, action) => {
+    setCurrentWithdrawal({ ...withdrawal, action });
+    setFormData({
+      reason: '',
+      transaction_id: '',
+      notes: ''
+    });
+    setIsModalOpen(true);
   };
 
-  const handleFormSubmit = async (e) => {
-    e.preventDefault();
-    
+  // Form change handler
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Handle approve withdrawal
+  const handleApproveWithdrawal = async () => {
     try {
-      if (currentWithdrawal) {
-        // In a real app, you would call the API
-        // await put(`/withdrawals/${currentWithdrawal.id}`, {
-        //   status: formData.status,
-        //   admin_notes: formData.admin_notes,
-        //   payment_details: formData.payment_details
-        // });
-        
-        const now = new Date().toISOString();
-        const updatedWithdrawal = {
-          ...currentWithdrawal,
-          status: formData.status,
-          admin_notes: formData.admin_notes,
-          payment_details: formData.payment_details || currentWithdrawal.payment_details,
-          processed_at: (formData.status === 'approved' || formData.status === 'rejected' || formData.status === 'completed') ? now : null,
-          available_balance: (formData.status === 'approved' || formData.status === 'completed') ? 0 : currentWithdrawal.amount
-        };
-        
-        // For mock purposes, update the withdrawal in the state
-        setWithdrawals(withdrawals.map(w => 
-          w.id === currentWithdrawal.id ? updatedWithdrawal : w
-        ));
-        
-        // Update stats
-        fetchStats();
-      }
-      
+      await approveWithdrawalRequest(currentWithdrawal.id);
       setIsModalOpen(false);
+      loadWithdrawals(pagination.currentPage);
     } catch (err) {
-      console.error('Error updating withdrawal request:', err);
+      console.error('Error approving withdrawal:', err);
     }
   };
 
-  const handleApproveRequest = (withdrawal) => {
-    setCurrentWithdrawal(withdrawal);
-    setFormData({
-      status: 'approved',
-      admin_notes: '',
-      payment_details: withdrawal.payment_details
-    });
-    setIsModalOpen(true);
+  // Handle reject withdrawal
+  const handleRejectWithdrawal = async () => {
+    try {
+      await rejectWithdrawalRequest(currentWithdrawal.id, { reason: formData.reason });
+      setIsModalOpen(false);
+      loadWithdrawals(pagination.currentPage);
+    } catch (err) {
+      console.error('Error rejecting withdrawal:', err);
+    }
   };
 
-  const handleRejectRequest = (withdrawal) => {
-    setCurrentWithdrawal(withdrawal);
-    setFormData({
-      status: 'rejected',
-      admin_notes: '',
-      payment_details: withdrawal.payment_details
-    });
-    setIsModalOpen(true);
+  // Handle complete withdrawal
+  const handleCompleteWithdrawal = async () => {
+    try {
+      await completeWithdrawalRequest(currentWithdrawal.id, {
+        transaction_id: formData.transaction_id,
+        notes: formData.notes
+      });
+      setIsModalOpen(false);
+      loadWithdrawals(pagination.currentPage);
+    } catch (err) {
+      console.error('Error completing withdrawal:', err);
+    }
   };
 
-  const handleCompleteRequest = (withdrawal) => {
-    setCurrentWithdrawal(withdrawal);
-    setFormData({
-      status: 'completed',
-      admin_notes: 'Payment processed successfully',
-      payment_details: withdrawal.payment_details
-    });
-    setIsModalOpen(true);
+  // Pagination handler
+  const handlePageChange = (page) => {
+    loadWithdrawals(page);
   };
 
+  // Format date for display
   const formatDate = (dateString) => {
-    if (!dateString) return '-';
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric'
+    });
   };
 
+  // Format currency for display
   const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
+    return new Intl.NumberFormat('en-US', { 
+      style: 'currency', 
+      currency: 'USD' 
+    }).format(amount || 0);
   };
 
-  const getAffiliateName = (id) => {
-    const affiliate = affiliates.find(a => a.id === id);
-    return affiliate ? affiliate.name : 'Unknown Affiliate';
-  };
-
+  // Format payment method for display
   const formatPaymentMethod = (method) => {
-    if (!method) return '-';
-    return method.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+    if (!method) return 'N/A';
+    
+    const methodMap = {
+      'bank_transfer': 'Bank Transfer',
+      'paypal': 'PayPal',
+      'crypto': 'Cryptocurrency',
+      'check': 'Check'
+    };
+    
+    return methodMap[method] || method.charAt(0).toUpperCase() + method.slice(1).replace('_', ' ');
   };
 
+  // Filter withdrawals based on search term
   const filteredWithdrawals = withdrawals.filter(withdrawal => {
-    const affiliateName = getAffiliateName(withdrawal.affiliate_id).toLowerCase();
-    const matchesSearch = affiliateName.includes(searchTerm.toLowerCase());
-    const matchesStatus = selectedStatus === 'all' || withdrawal.status === selectedStatus;
+    if (!searchTerm) return true;
     
-    return matchesSearch && matchesStatus;
+    // Search in user/account info
+    const userName = withdrawal.attributes.user_id || '';
+    const paymentDetails = withdrawal.attributes.payment_details ? JSON.stringify(withdrawal.attributes.payment_details) : '';
+    
+    return userName.toString().includes(searchTerm) || paymentDetails.toLowerCase().includes(searchTerm.toLowerCase());
   });
 
   return (
     <div className="withdrawal-management">
       <div className="withdrawal-management__stats">
-        <Card padding="sm" className="withdrawal-management__stat-card">
+        <Card className="withdrawal-management__stat-card">
           <div className="withdrawal-management__stat">
             <div className="withdrawal-management__stat-icon withdrawal-management__stat-icon--total">
-              <i className="icon-file-text"></i>
+              <FileText size={20} />
             </div>
             <div className="withdrawal-management__stat-content">
               <div className="withdrawal-management__stat-value">{stats.totalRequests}</div>
@@ -284,10 +235,10 @@ export const WithdrawalManagement = () => {
           </div>
         </Card>
         
-        <Card padding="sm" className="withdrawal-management__stat-card">
+        <Card className="withdrawal-management__stat-card">
           <div className="withdrawal-management__stat">
             <div className="withdrawal-management__stat-icon withdrawal-management__stat-icon--pending">
-              <i className="icon-clock"></i>
+              <Clock size={20} />
             </div>
             <div className="withdrawal-management__stat-content">
               <div className="withdrawal-management__stat-value">{stats.pendingRequests}</div>
@@ -296,10 +247,10 @@ export const WithdrawalManagement = () => {
           </div>
         </Card>
         
-        <Card padding="sm" className="withdrawal-management__stat-card">
+        <Card className="withdrawal-management__stat-card">
           <div className="withdrawal-management__stat">
             <div className="withdrawal-management__stat-icon withdrawal-management__stat-icon--approved">
-              <i className="icon-check-circle"></i>
+              <Check size={20} />
             </div>
             <div className="withdrawal-management__stat-content">
               <div className="withdrawal-management__stat-value">{stats.approvedRequests}</div>
@@ -308,10 +259,10 @@ export const WithdrawalManagement = () => {
           </div>
         </Card>
         
-        <Card padding="sm" className="withdrawal-management__stat-card">
+        <Card className="withdrawal-management__stat-card">
           <div className="withdrawal-management__stat">
             <div className="withdrawal-management__stat-icon withdrawal-management__stat-icon--amount">
-              <i className="icon-dollar-sign"></i>
+              <DollarSign size={20} />
             </div>
             <div className="withdrawal-management__stat-content">
               <div className="withdrawal-management__stat-value">{formatCurrency(stats.totalAmount)}</div>
@@ -323,46 +274,49 @@ export const WithdrawalManagement = () => {
 
       <div className="withdrawal-management__header">
         <div className="withdrawal-management__filters">
-          <Input
-            type="text"
-            placeholder="Search affiliates..."
-            value={searchTerm}
-            onChange={handleSearch}
-            icon="search"
-          />
+          <div className="withdrawal-management__search">
+            <Input
+              type="text"
+              placeholder="Search withdrawals..."
+              value={searchTerm}
+              onChange={handleSearch}
+              icon={<Search size={16} />}
+            />
+          </div>
+          
           <div className="withdrawal-management__status-filters">
             <Button 
-              variant={selectedStatus === 'all' ? 'primary' : 'secondary'} 
+              variant={selectedStatus === 'all' ? 'primary' : 'secondary'}
+              size="small"
               onClick={() => handleStatusFilter('all')}
-              size="sm"
             >
               All
             </Button>
             <Button 
-              variant={selectedStatus === 'pending' ? 'primary' : 'secondary'} 
+              variant={selectedStatus === 'pending' ? 'primary' : 'secondary'}
+              size="small"
               onClick={() => handleStatusFilter('pending')}
-              size="sm"
             >
               Pending
             </Button>
             <Button 
-              variant={selectedStatus === 'approved' ? 'primary' : 'secondary'} 
+              variant={selectedStatus === 'approved' ? 'primary' : 'secondary'}
+              size="small"
               onClick={() => handleStatusFilter('approved')}
-              size="sm"
             >
               Approved
             </Button>
             <Button 
               variant={selectedStatus === 'rejected' ? 'primary' : 'secondary'} 
+              size="small"
               onClick={() => handleStatusFilter('rejected')}
-              size="sm"
             >
               Rejected
             </Button>
             <Button 
               variant={selectedStatus === 'completed' ? 'primary' : 'secondary'} 
+              size="small"
               onClick={() => handleStatusFilter('completed')}
-              size="sm"
             >
               Completed
             </Button>
@@ -372,173 +326,295 @@ export const WithdrawalManagement = () => {
 
       <Card title={`Withdrawal Requests (${filteredWithdrawals.length})`}>
         {loading ? (
-          <div className="withdrawal-management__loading">Loading withdrawal requests...</div>
+          <Loading message="Loading withdrawal requests..." />
         ) : error ? (
-          <div className="withdrawal-management__error">Error loading withdrawal requests: {error}</div>
-        ) : filteredWithdrawals.length === 0 ? (
-          <div className="withdrawal-management__empty">No withdrawal requests found matching your criteria.</div>
+          <ErrorMessage 
+            message={error} 
+            retryAction={() => loadWithdrawals(pagination.currentPage)}
+          />
         ) : (
           <div className="withdrawal-management__table-container">
-            <table className="withdrawal-management__table">
-              <thead>
-                <tr>
-                  <th>Affiliate</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Payment Method</th>
-                  <th>Requested</th>
-                  <th>Processed</th>
-                  <th>Notes</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredWithdrawals.map(withdrawal => (
-                  <tr key={withdrawal.id}>
-                    <td>{getAffiliateName(withdrawal.affiliate_id)}</td>
-                    <td>{formatCurrency(withdrawal.amount)}</td>
-                    <td>
-                      <span className={`withdrawal-management__status withdrawal-management__status--${withdrawal.status}`}>
-                        {withdrawal.status}
-                      </span>
-                    </td>
-                    <td>{formatPaymentMethod(withdrawal.payment_method)}</td>
-                    <td>{formatDate(withdrawal.requested_at)}</td>
-                    <td>{formatDate(withdrawal.processed_at)}</td>
-                    <td>
-                      <div className="withdrawal-management__notes" title={withdrawal.admin_notes}>
-                        {withdrawal.admin_notes || '-'}
-                      </div>
-                    </td>
-                    <td className="withdrawal-management__actions">
-                      {withdrawal.status === 'pending' && (
-                        <>
+            {filteredWithdrawals.length === 0 ? (
+              <EmptyState 
+                message="No withdrawal requests found. Try adjusting your search or filters."
+                icon={DollarSign}
+              />
+            ) : (
+              <>
+                <table className="withdrawal-management__table">
+                  <thead>
+                    <tr>
+                      <th>User ID</th>
+                      <th>Amount</th>
+                      <th>Payment Method</th>
+                      <th>Status</th>
+                      <th>Requested</th>
+                      <th>Processed</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredWithdrawals.map(withdrawal => (
+                      <tr key={withdrawal.id}>
+                        <td>{withdrawal.attributes.user_id}</td>
+                        <td className="withdrawal-management__amount">
+                          {formatCurrency(withdrawal.attributes.amount)}
+                        </td>
+                        <td>{formatPaymentMethod(withdrawal.attributes.payment_method)}</td>
+                        <td>
+                          <span className={`withdrawal-management__status withdrawal-management__status--${withdrawal.attributes.status}`}>
+                            {withdrawal.attributes.status}
+                          </span>
+                        </td>
+                        <td>{formatDate(withdrawal.attributes.created_at)}</td>
+                        <td>{formatDate(withdrawal.attributes.completed_at || withdrawal.attributes.approved_at)}</td>
+                        <td className="withdrawal-management__actions">
+                          {withdrawal.attributes.status === 'pending' && (
+                            <>
+                              <Button
+                                variant="icon"
+                                onClick={() => handleOpenModal(withdrawal, 'approve')}
+                                title="Approve Request"
+                              >
+                                <Check size={16} />
+                              </Button>
+                              <Button
+                                variant="icon"
+                                onClick={() => handleOpenModal(withdrawal, 'reject')}
+                                title="Reject Request"
+                              >
+                                <X size={16} />
+                              </Button>
+                            </>
+                          )}
+                          
+                          {withdrawal.attributes.status === 'approved' && (
+                            <Button
+                              variant="icon"
+                              onClick={() => handleOpenModal(withdrawal, 'complete')}
+                              title="Complete Payment"
+                            >
+                              <DollarSign size={16} />
+                            </Button>
+                          )}
+                          
                           <Button
                             variant="icon"
-                            icon="check"
-                            onClick={() => handleApproveRequest(withdrawal)}
-                            title="Approve Request"
-                          />
-                          <Button
-                            variant="icon"
-                            icon="x"
-                            onClick={() => handleRejectRequest(withdrawal)}
-                            title="Reject Request"
-                          />
-                        </>
-                      )}
-                      {withdrawal.status === 'approved' && (
-                        <Button
-                          variant="icon"
-                          icon="dollar-sign"
-                          onClick={() => handleCompleteRequest(withdrawal)}
-                          title="Mark as Completed"
-                        />
-                      )}
-                      <Button
-                        variant="icon"
-                        icon="eye"
-                        onClick={() => navigate(`/affiliates/${withdrawal.affiliate_id}`)}
-                        title="View Affiliate"
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                            onClick={() => handleOpenModal(withdrawal, 'view')}
+                            title="View Details"
+                          >
+                            <Eye size={16} />
+                          </Button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                
+                {pagination.totalPages > 1 && (
+                  <div className="withdrawal-management__pagination">
+                    <Button 
+                      variant="secondary" 
+                      size="small"
+                      disabled={pagination.currentPage === 1}
+                      onClick={() => handlePageChange(pagination.currentPage - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <span className="withdrawal-management__pagination-info">
+                      Page {pagination.currentPage} of {pagination.totalPages}
+                    </span>
+                    <Button 
+                      variant="secondary" 
+                      size="small"
+                      disabled={pagination.currentPage === pagination.totalPages}
+                      onClick={() => handlePageChange(pagination.currentPage + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                )}
+              </>
+            )}
           </div>
         )}
       </Card>
 
-      {isModalOpen && (
+      {isModalOpen && currentWithdrawal && (
         <div className="withdrawal-management__modal-overlay">
           <div className="withdrawal-management__modal">
             <div className="withdrawal-management__modal-header">
               <h2>
-                {formData.status === 'approved' 
-                  ? 'Approve Withdrawal Request' 
-                  : formData.status === 'rejected'
-                    ? 'Reject Withdrawal Request'
-                    : 'Complete Withdrawal Request'
-                }
+                {currentWithdrawal.action === 'approve' ? 'Approve Withdrawal Request' : 
+                 currentWithdrawal.action === 'reject' ? 'Reject Withdrawal Request' : 
+                 currentWithdrawal.action === 'complete' ? 'Complete Withdrawal Payment' :
+                 'Withdrawal Request Details'}
               </h2>
               <Button 
                 variant="icon" 
-                icon="x" 
                 onClick={() => setIsModalOpen(false)}
-              />
+              >
+                <X size={18} />
+              </Button>
             </div>
-            <form onSubmit={handleFormSubmit}>
-              <div className="withdrawal-management__form-info">
-                <div className="withdrawal-management__form-row">
-                  <div className="withdrawal-management__form-label">Affiliate:</div>
-                  <div className="withdrawal-management__form-value">{getAffiliateName(currentWithdrawal?.affiliate_id)}</div>
+            
+            <div className="withdrawal-management__withdrawal-details">
+              <div className="withdrawal-management__detail-row">
+                <div className="withdrawal-management__detail-label">User ID:</div>
+                <div className="withdrawal-management__detail-value">
+                  {currentWithdrawal.attributes.user_id}
                 </div>
-                <div className="withdrawal-management__form-row">
-                  <div className="withdrawal-management__form-label">Amount:</div>
-                  <div className="withdrawal-management__form-value">{formatCurrency(currentWithdrawal?.amount)}</div>
+              </div>
+              
+              <div className="withdrawal-management__detail-row">
+                <div className="withdrawal-management__detail-label">Amount:</div>
+                <div className="withdrawal-management__detail-value">
+                  {formatCurrency(currentWithdrawal.attributes.amount)}
                 </div>
-                <div className="withdrawal-management__form-row">
-                  <div className="withdrawal-management__form-label">Payment Method:</div>
-                  <div className="withdrawal-management__form-value">{formatPaymentMethod(currentWithdrawal?.payment_method)}</div>
+              </div>
+              
+              <div className="withdrawal-management__detail-row">
+                <div className="withdrawal-management__detail-label">Payment Method:</div>
+                <div className="withdrawal-management__detail-value">
+                  {formatPaymentMethod(currentWithdrawal.attributes.payment_method)}
                 </div>
-                <div className="withdrawal-management__form-row">
-                  <div className="withdrawal-management__form-label">Payment Details:</div>
-                  <div className="withdrawal-management__form-value withdrawal-management__form-value--details">
-                    {currentWithdrawal?.payment_details}
+              </div>
+              
+              <div className="withdrawal-management__detail-row">
+                <div className="withdrawal-management__detail-label">Payment Details:</div>
+                <div className="withdrawal-management__detail-value withdrawal-management__detail-value--details">
+                  {currentWithdrawal.attributes.payment_details 
+                    ? JSON.stringify(currentWithdrawal.attributes.payment_details, null, 2)
+                    : 'No payment details provided'}
+                </div>
+              </div>
+              
+              <div className="withdrawal-management__detail-row">
+                <div className="withdrawal-management__detail-label">Status:</div>
+                <div className="withdrawal-management__detail-value">
+                  <span className={`withdrawal-management__status withdrawal-management__status--${currentWithdrawal.attributes.status}`}>
+                    {currentWithdrawal.attributes.status}
+                  </span>
+                </div>
+              </div>
+              
+              <div className="withdrawal-management__detail-row">
+                <div className="withdrawal-management__detail-label">Requested:</div>
+                <div className="withdrawal-management__detail-value">
+                  {formatDate(currentWithdrawal.attributes.created_at)}
+                </div>
+              </div>
+              
+              {currentWithdrawal.attributes.approved_at && (
+                <div className="withdrawal-management__detail-row">
+                  <div className="withdrawal-management__detail-label">Approved:</div>
+                  <div className="withdrawal-management__detail-value">
+                    {formatDate(currentWithdrawal.attributes.approved_at)}
                   </div>
                 </div>
-              </div>
+              )}
               
-              <div className="withdrawal-management__form-group">
-                <label htmlFor="status">Status</label>
-                <select
-                  id="status"
-                  name="status"
-                  value={formData.status}
-                  onChange={handleFormChange}
-                  required
-                >
-                  <option value="approved">Approved</option>
-                  <option value="rejected">Rejected</option>
-                  <option value="completed">Completed</option>
-                </select>
-              </div>
+              {currentWithdrawal.attributes.completed_at && (
+                <div className="withdrawal-management__detail-row">
+                  <div className="withdrawal-management__detail-label">Completed:</div>
+                  <div className="withdrawal-management__detail-value">
+                    {formatDate(currentWithdrawal.attributes.completed_at)}
+                  </div>
+                </div>
+              )}
               
+              {currentWithdrawal.attributes.notes && (
+                <div className="withdrawal-management__detail-row">
+                  <div className="withdrawal-management__detail-label">Notes:</div>
+                  <div className="withdrawal-management__detail-value">
+                    {currentWithdrawal.attributes.notes}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {currentWithdrawal.action === 'reject' && (
               <div className="withdrawal-management__form-group">
-                <Input
-                  label="Admin Notes"
-                  name="admin_notes"
-                  value={formData.admin_notes}
+                <label htmlFor="reason">Rejection Reason</label>
+                <textarea
+                  id="reason"
+                  name="reason"
+                  value={formData.reason}
                   onChange={handleFormChange}
-                  placeholder={formData.status === 'rejected' ? 'Please provide a reason for rejection' : 'Optional notes'}
-                  multiline
+                  className="withdrawal-management__textarea"
                   rows={3}
-                  required={formData.status === 'rejected'}
+                  placeholder="Provide a reason for rejection..."
+                  required
                 />
               </div>
+            )}
+            
+            {currentWithdrawal.action === 'complete' && (
+              <>
+                <div className="withdrawal-management__form-group">
+                  <label htmlFor="transaction_id">Transaction ID</label>
+                  <Input
+                    id="transaction_id"
+                    name="transaction_id"
+                    value={formData.transaction_id}
+                    onChange={handleFormChange}
+                    placeholder="Enter transaction reference ID..."
+                  />
+                </div>
+                <div className="withdrawal-management__form-group">
+                  <label htmlFor="notes">Payment Notes</label>
+                  <textarea
+                    id="notes"
+                    name="notes"
+                    value={formData.notes}
+                    onChange={handleFormChange}
+                    className="withdrawal-management__textarea"
+                    rows={3}
+                    placeholder="Add notes about this payment..."
+                  />
+                </div>
+              </>
+            )}
+            
+            <div className="withdrawal-management__form-actions">
+              <Button 
+                variant="secondary" 
+                type="button" 
+                onClick={() => setIsModalOpen(false)}
+              >
+                {currentWithdrawal.action === 'view' ? 'Close' : 'Cancel'}
+              </Button>
               
-              <div className="withdrawal-management__form-actions">
-                <Button 
-                  variant="secondary" 
-                  type="button" 
-                  onClick={() => setIsModalOpen(false)}
-                >
-                  Cancel
-                </Button>
+              {currentWithdrawal.action === 'approve' && (
                 <Button 
                   variant="primary" 
-                  type="submit"
+                  onClick={handleApproveWithdrawal}
+                  disabled={loading}
                 >
-                  {formData.status === 'approved' 
-                    ? 'Approve Request' 
-                    : formData.status === 'rejected'
-                      ? 'Reject Request'
-                      : 'Complete Payment'
-                  }
+                  Approve Request
                 </Button>
-              </div>
-            </form>
+              )}
+              
+              {currentWithdrawal.action === 'reject' && (
+                <Button 
+                  variant="error" 
+                  onClick={handleRejectWithdrawal}
+                  disabled={loading || !formData.reason}
+                >
+                  Reject Request
+                </Button>
+              )}
+              
+              {currentWithdrawal.action === 'complete' && (
+                <Button 
+                  variant="primary" 
+                  onClick={handleCompleteWithdrawal}
+                  disabled={loading}
+                >
+                  Complete Payment
+                </Button>
+              )}
+            </div>
           </div>
         </div>
       )}

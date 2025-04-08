@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shield, User, Lock } from 'react-feather';
-import { useAuth } from '../../hooks/useAuth';
+import { login } from '../../services/auth';
 import { Input } from '../../components/common/Input/Input';
 import { Button } from '../../components/common/Button/Button';
 import './Login.scss';
@@ -9,52 +9,49 @@ import './Login.scss';
 export const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [errors, setErrors] = useState({});
-  const { loginUser, loading, error } = useAuth();
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
   const navigate = useNavigate();
 
-  console.log('[Login] Component mounted');
-
   const validate = () => {
-    const newErrors = {};
+    const errors = {};
     
     if (!email) {
-      newErrors.email = 'Email is required';
+      errors.email = 'Email is required';
     } else if (!/\S+@\S+\.\S+/.test(email)) {
-      newErrors.email = 'Email is invalid';
+      errors.email = 'Email is invalid';
     }
     
     if (!password) {
-      newErrors.password = 'Password is required';
+      errors.password = 'Password is required';
     }
     
-    setErrors(newErrors);
-    console.log('[Login] Validation result:', Object.keys(newErrors).length === 0);
-    return Object.keys(newErrors).length === 0;
+    setError(Object.keys(errors).length > 0 ? 'Please correct the form errors' : null);
+    return Object.keys(errors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('[Login] Form submitted with email:', email);
     
     if (!validate()) {
-      console.log('[Login] Validation failed');
       return;
     }
     
-    console.log('[Login] Attempting login...');
+    setLoading(true);
+    setError(null);
+    
     try {
-      const success = await loginUser(email, password);
-      console.log('[Login] Login attempt result:', success);
-      
-      if (success) {
-        console.log('[Login] Login successful, navigating to dashboard');
-        navigate('/dashboard');
-      } else {
-        console.log('[Login] Login failed, staying on login page');
-      }
+      await login(email, password);
+      navigate('/dashboard');
     } catch (err) {
-      console.error('[Login] Unexpected error during login:', err);
+      console.error('Login error:', err);
+      if (err.response?.data?.message) {
+        setError(err.response.data.message);
+      } else {
+        setError('Login failed. Please check your credentials and try again.');
+      }
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -83,7 +80,6 @@ export const Login = () => {
             placeholder="Enter your email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            error={errors.email}
             icon={<User size={18} />}
             fullWidth
           />
@@ -96,7 +92,6 @@ export const Login = () => {
             placeholder="Enter your password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            error={errors.password}
             icon={<Lock size={18} />}
             fullWidth
           />
@@ -113,3 +108,5 @@ export const Login = () => {
     </div>
   );
 };
+
+export default Login;

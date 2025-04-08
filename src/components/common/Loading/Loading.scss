@@ -1,0 +1,37 @@
+@import '../../../styles/variables';
+@import '../../../styles/mixins';
+
+.loading {
+  @include flex(row, center, center);
+  padding: $spacing-xl;
+  gap: $spacing-md;
+  
+  &__icon {
+    animation: spin 1.5s linear infinite;
+    
+    .theme-dark & {
+      color: $accent-color;
+    }
+    
+    .theme-light & {
+      color: $accent-color;
+    }
+  }
+  
+  &__text {
+    font-weight: 500;
+    
+    .theme-dark & {
+      color: $text-muted-dark;
+    }
+    
+    .theme-light & {
+      color: $text-muted-light;
+    }
+  }
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

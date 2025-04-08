@@ -1,365 +1,321 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Search, Check, X, Edit, ExternalLink } from 'react-feather';
 import { useApi } from '../../hooks/useApi';
-import { useNavigation } from '../../hooks/useNavigation';
-import { getApiData, mockApi } from '../../services/api';
 import { Card } from '../../components/common/Card/Card';
 import { Button } from '../../components/common/Button/Button';
 import { Input } from '../../components/common/Input/Input';
+import { Loading } from '../../components/common/Loading/Loading';
+import { EmptyState } from '../../components/common/EmptyState/EmptyState';
+import { ErrorMessage } from '../../components/common/ErrorMessage/ErrorMessage';
 import './AffiliateManagement.scss';
 
 export const AffiliateManagement = () => {
-  const navigate = useNavigate();
-  const { setCurrentPage } = useNavigation();
-  
-  const [affiliates, setAffiliates] = useState([]);
+  // State
+  const [applications, setApplications] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [currentAffiliate, setCurrentAffiliate] = useState(null);
+  const [currentApplication, setCurrentApplication] = useState(null);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    website: '',
-    commission_rate: 10,
-    status: 'active',
-    payment_method: 'bank_transfer',
-    payment_details: ''
+    notes: '',
   });
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [currentPageNumber, setCurrentPageNumber] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
+  const [pagination, setPagination] = useState({
+    currentPage: 1,
+    totalPages: 1,
+    totalCount: 0
+  });
 
+  // API hooks
+  const { 
+    loading, 
+    error, 
+    callApi,
+    approveAffiliateApplication,
+    rejectAffiliateApplication
+  } = useApi();
+
+  // Load affiliate applications on mount and when filters change
   useEffect(() => {
-    setCurrentPage('Affiliate Management');
-    fetchAffiliates();
-  }, [searchTerm, selectedStatus, currentPageNumber]);
+    loadAffiliateApplications(pagination.currentPage);
+  }, [selectedStatus]);
 
-  const fetchAffiliates = async () => {
-    setLoading(true);
-    setError(null);
+  // Load affiliate applications function
+  const loadAffiliateApplications = async (page = 1) => {
     try {
-      const params = {
-        page: currentPageNumber,
-        perPage: 10,
-        search: searchTerm || undefined,
-        status: selectedStatus !== 'all' ? selectedStatus : undefined
-      };
-      
-      const response = await getApiData('/admin/affiliates', mockApi.getAffiliates, params);
-      
-      // Transform the data if needed
-      let affiliatesList = [];
-      if (Array.isArray(response)) {
-        affiliatesList = response;
-      } else if (response && response.data) {
-        affiliatesList = response.data.map(affiliate => ({
-          id: affiliate.id,
-          ...affiliate.attributes
-        }));
-        
-        // Handle pagination
-        if (response.meta) {
-          setCurrentPageNumber(response.meta.current_page);
-          setTotalPages(response.meta.total_pages);
+      const data = await callApi(
+        async () => {
+          return await fetch(`/api/v1/admin/affiliate-applications?page=${page}&per_page=10${selectedStatus !== 'all' ? `&status=${selectedStatus}` : ''}`);
         }
-      }
+      );
       
-      setAffiliates(affiliatesList);
+      if (data && data.data) {
+        setApplications(data.data);
+        
+        if (data.meta) {
+          setPagination({
+            currentPage: data.meta.current_page,
+            totalPages: data.meta.total_pages,
+            totalCount: data.meta.total_count
+          });
+        }
+      } else {
+        setApplications([]);
+      }
     } catch (err) {
-      console.error('Error fetching affiliates:', err);
-      setError('Failed to load affiliates. Please try again later.');
-    } finally {
-      setLoading(false);
+      console.error('Error loading affiliate applications:', err);
     }
   };
 
+  // Search handling
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
-    setCurrentPageNumber(1); // Reset to first page on new search
-  };
-
-  const handleStatusFilter = (status) => {
-    setSelectedStatus(status);
-    setCurrentPageNumber(1); // Reset to first page on new filter
-  };
-
-  const handleAddAffiliate = () => {
-    setCurrentAffiliate(null);
-    setFormData({
-      name: '',
-      email: '',
-      website: '',
-      commission_rate: 10,
-      status: 'active',
-      payment_method: 'bank_transfer',
-      payment_details: ''
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleEditAffiliate = (affiliate) => {
-    setCurrentAffiliate(affiliate);
-    setFormData({
-      name: affiliate.name,
-      email: affiliate.email,
-      website: affiliate.website,
-      commission_rate: affiliate.commission_rate,
-      status: affiliate.status,
-      payment_method: affiliate.payment_method,
-      payment_details: affiliate.payment_details
-    });
-    setIsModalOpen(true);
-  };
-
-  const handleDeleteAffiliate = async (id) => {
-    if (window.confirm('Are you sure you want to delete this affiliate?')) {
-      setLoading(true);
-      try {
-        await getApiData(`/admin/affiliates/${id}/delete`, () => {}, { affiliateId: id });
-        fetchAffiliates();
-      } catch (err) {
-        console.error('Error deleting affiliate:', err);
-        setError('Failed to delete affiliate. Please try again later.');
-        setLoading(false);
-      }
-    }
-  };
-
-  const handleAffiliateStatus = async (id, newStatus) => {
-    setLoading(true);
-    try {
-      await getApiData(`/admin/affiliates/${id}/status`, () => {}, {
-        affiliateId: id,
-        status: newStatus
-      });
-      fetchAffiliates();
-    } catch (err) {
-      console.error('Error updating affiliate status:', err);
-      setError('Failed to update affiliate status. Please try again later.');
-      setLoading(false);
-    }
-  };
-
-  const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prevData => ({
-      ...prevData,
-      [name]: name === 'commission_rate' ? parseInt(value, 10) : value
-    }));
-  };
-
-  const handleFormSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    
-    try {
-      if (currentAffiliate) {
-        // Update existing affiliate
-        await getApiData(`/admin/affiliates/${currentAffiliate.id}/update`, () => {}, {
-          affiliateId: currentAffiliate.id,
-          affiliateData: formData
-        });
-      } else {
-        // Create new affiliate
-        await getApiData('/admin/affiliates/create', () => {}, {
-          affiliateData: formData
-        });
-      }
-      
-      setIsModalOpen(false);
-      fetchAffiliates();
-    } catch (err) {
-      console.error('Error saving affiliate:', err);
-      setError('Failed to save affiliate. Please try again later.');
-      setLoading(false);
-    }
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', { 
-      year: 'numeric', month: 'short', day: 'numeric' 
-    });
-  };
-
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD'
-    }).format(amount);
   };
   
-  const handlePageChange = (newPage) => {
-    if (newPage >= 1 && newPage <= totalPages) {
-      setCurrentPageNumber(newPage);
+  // Apply search with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // Filter in the client-side since the API doesn't support searching
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
+
+  // Status filter handling
+  const handleStatusFilter = (status) => {
+    setSelectedStatus(status);
+  };
+
+  // View application details
+  const handleViewApplication = (application) => {
+    setCurrentApplication(application);
+    setFormData({
+      notes: '',
+    });
+    setIsModalOpen(true);
+  };
+
+  // Form change handler
+  const handleFormChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  // Handle approve application
+  const handleApproveApplication = async (e) => {
+    e.preventDefault();
+    
+    try {
+      await approveAffiliateApplication(currentApplication.id, { notes: formData.notes });
+      setIsModalOpen(false);
+      loadAffiliateApplications(pagination.currentPage);
+    } catch (err) {
+      console.error('Error approving application:', err);
     }
   };
+
+  // Handle reject application
+  const handleRejectApplication = async (e) => {
+    e.preventDefault();
+    
+    try {
+      await rejectAffiliateApplication(currentApplication.id, { notes: formData.notes });
+      setIsModalOpen(false);
+      loadAffiliateApplications(pagination.currentPage);
+    } catch (err) {
+      console.error('Error rejecting application:', err);
+    }
+  };
+
+  // Pagination handler
+  const handlePageChange = (page) => {
+    loadAffiliateApplications(page);
+  };
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric'
+    });
+  };
+
+  // Filter applications based on search term
+  const filteredApplications = applications.filter(application => {
+    if (!searchTerm) return true;
+    
+    // Search in user email or username if available
+    const email = application.relationships?.user?.data?.attributes?.email || '';
+    const username = application.relationships?.user?.data?.attributes?.username || '';
+    
+    return email.toLowerCase().includes(searchTerm.toLowerCase()) || 
+           username.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   return (
     <div className="affiliate-management">
-      <div className="affiliate-management__header">
-        <h1>Affiliate Management</h1>
-        <Button 
-          variant="primary" 
-          onClick={handleAddAffiliate}
-        >
-          Add New Affiliate
-        </Button>
-      </div>
-      
-      <Card className="affiliate-management__filters">
-        <div className="affiliate-management__search">
-          <Input
-            type="text"
-            placeholder="Search affiliates..."
-            value={searchTerm}
-            onChange={handleSearch}
+      <Card>
+        <div className="affiliate-management__header">
+          <h2 className="affiliate-management__title">Affiliate Applications</h2>
+        </div>
+        
+        <div className="affiliate-management__filters">
+          <div className="affiliate-management__search">
+            <Input
+              type="text"
+              placeholder="Search applications..."
+              value={searchTerm}
+              onChange={handleSearch}
+              icon={<Search size={16} />}
+            />
+          </div>
+          
+          <div className="affiliate-management__status-filters">
+            <Button 
+              variant={selectedStatus === 'all' ? 'primary' : 'secondary'}
+              size="small"
+              onClick={() => handleStatusFilter('all')}
+            >
+              All
+            </Button>
+            <Button 
+              variant={selectedStatus === 'pending' ? 'primary' : 'secondary'}
+              size="small"
+              onClick={() => handleStatusFilter('pending')}
+            >
+              Pending
+            </Button>
+            <Button 
+              variant={selectedStatus === 'approved' ? 'primary' : 'secondary'}
+              size="small"
+              onClick={() => handleStatusFilter('approved')}
+            >
+              Approved
+            </Button>
+            <Button 
+              variant={selectedStatus === 'rejected' ? 'primary' : 'secondary'} 
+              size="small"
+              onClick={() => handleStatusFilter('rejected')}
+            >
+              Rejected
+            </Button>
+          </div>
+        </div>
+        
+        {loading ? (
+          <Loading message="Loading affiliate applications..." />
+        ) : error ? (
+          <ErrorMessage 
+            message={error} 
+            retryAction={() => loadAffiliateApplications(pagination.currentPage)}
           />
-        </div>
-        
-        <div className="affiliate-management__status-filter">
-          <button 
-            className={`affiliate-management__filter-btn ${selectedStatus === 'all' ? 'active' : ''}`}
-            onClick={() => handleStatusFilter('all')}
-          >
-            All
-          </button>
-          <button 
-            className={`affiliate-management__filter-btn ${selectedStatus === 'active' ? 'active' : ''}`}
-            onClick={() => handleStatusFilter('active')}
-          >
-            Active
-          </button>
-          <button 
-            className={`affiliate-management__filter-btn ${selectedStatus === 'pending' ? 'active' : ''}`}
-            onClick={() => handleStatusFilter('pending')}
-          >
-            Pending
-          </button>
-          <button 
-            className={`affiliate-management__filter-btn ${selectedStatus === 'suspended' ? 'active' : ''}`}
-            onClick={() => handleStatusFilter('suspended')}
-          >
-            Suspended
-          </button>
-        </div>
-      </Card>
-      
-      <Card className="affiliate-management__table-card">
-        {loading && <div className="affiliate-management__loading">Loading affiliates...</div>}
-        
-        {error && <div className="affiliate-management__error">{error}</div>}
-        
-        {!loading && !error && (
-          <>
-            {affiliates.length === 0 ? (
-              <div className="affiliate-management__empty">
-                No affiliates found. Try adjusting your search or filters.
-              </div>
+        ) : (
+          <div className="affiliate-management__table-container">
+            {filteredApplications.length === 0 ? (
+              <EmptyState 
+                message="No affiliate applications found. Try adjusting your search or filters."
+                icon={ExternalLink}
+              />
             ) : (
               <>
-                <div className="affiliate-management__table">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Name</th>
-                        <th>Email</th>
-                        <th>Website</th>
-                        <th>Commission Rate</th>
-                        <th>Status</th>
-                        <th>Referred Users</th>
-                        <th>Total Earnings</th>
-                        <th>Pending Payment</th>
-                        <th>Joined Date</th>
-                        <th>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {affiliates.map(affiliate => (
-                        <tr key={affiliate.id}>
-                          <td>{affiliate.name}</td>
-                          <td>{affiliate.email}</td>
-                          <td>
-                            <a href={affiliate.website} target="_blank" rel="noopener noreferrer">
-                              {affiliate.website.replace(/(^\w+:|^)\/\//, '')}
-                            </a>
-                          </td>
-                          <td>{affiliate.commission_rate}%</td>
-                          <td>
-                            <span className={`affiliate-management__status affiliate-management__status--${affiliate.status}`}>
-                              {affiliate.status}
-                            </span>
-                          </td>
-                          <td>{affiliate.referred_users}</td>
-                          <td>{formatCurrency(affiliate.total_earnings)}</td>
-                          <td>{formatCurrency(affiliate.pending_payment)}</td>
-                          <td>{formatDate(affiliate.joined_at)}</td>
-                          <td>
-                            <div className="affiliate-management__actions">
-                              <Button 
-                                variant="icon" 
-                                icon="edit" 
-                                onClick={() => handleEditAffiliate(affiliate)}
-                                title="Edit"
-                              />
-                              
-                              {affiliate.status === 'active' ? (
-                                <Button 
-                                  variant="icon" 
-                                  icon="pause"
-                                  onClick={() => handleAffiliateStatus(affiliate.id, 'suspended')}
-                                  title="Suspend"
-                                />
-                              ) : affiliate.status === 'pending' ? (
-                                <Button 
-                                  variant="icon" 
-                                  icon="check"
-                                  onClick={() => handleAffiliateStatus(affiliate.id, 'active')}
-                                  title="Approve"
-                                />
-                              ) : (
-                                <Button 
-                                  variant="icon" 
-                                  icon="play"
-                                  onClick={() => handleAffiliateStatus(affiliate.id, 'active')}
-                                  title="Activate"
-                                />
-                              )}
-                              
-                              <Button 
-                                variant="icon" 
-                                icon="trash" 
-                                onClick={() => handleDeleteAffiliate(affiliate.id)}
-                                title="Delete"
-                              />
+                <table className="affiliate-management__table">
+                  <thead>
+                    <tr>
+                      <th>User</th>
+                      <th>Status</th>
+                      <th>Submitted</th>
+                      <th>Processed</th>
+                      <th>Notes</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredApplications.map(application => (
+                      <tr key={application.id}>
+                        <td>
+                          <div className="affiliate-management__user">
+                            <div className="affiliate-management__username">
+                              {application.relationships?.user?.data?.attributes?.username || 'Unknown User'}
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                            <div className="affiliate-management__email">
+                              {application.relationships?.user?.data?.attributes?.email || 'No email'}
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`affiliate-management__status affiliate-management__status--${application.attributes.status}`}>
+                            {application.attributes.status}
+                          </span>
+                        </td>
+                        <td>{formatDate(application.attributes.submitted_at)}</td>
+                        <td>{formatDate(application.attributes.processed_at)}</td>
+                        <td>
+                          <div className="affiliate-management__notes" title={application.attributes.notes}>
+                            {application.attributes.notes || '-'}
+                          </div>
+                        </td>
+                        <td className="affiliate-management__actions">
+                          <Button
+                            variant="icon"
+                            onClick={() => handleViewApplication(application)}
+                            title="View Application"
+                          >
+                            <Edit size={16} />
+                          </Button>
+                          
+                          {application.attributes.status === 'pending' && (
+                            <>
+                              <Button
+                                variant="icon"
+                                onClick={() => {
+                                  setCurrentApplication(application);
+                                  setFormData({ notes: '' });
+                                  handleApproveApplication({ preventDefault: () => {} });
+                                }}
+                                title="Approve Application"
+                              >
+                                <Check size={16} />
+                              </Button>
+                              
+                              <Button
+                                variant="icon"
+                                onClick={() => {
+                                  setCurrentApplication(application);
+                                  setFormData({ notes: '' });
+                                  setIsModalOpen(true);
+                                }}
+                                title="Reject Application"
+                              >
+                                <X size={16} />
+                              </Button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
                 
-                {/* Pagination */}
-                {totalPages > 1 && (
+                {pagination.totalPages > 1 && (
                   <div className="affiliate-management__pagination">
-                    <Button
-                      variant="secondary"
-                      onClick={() => handlePageChange(currentPageNumber - 1)}
-                      disabled={currentPageNumber === 1}
+                    <Button 
+                      variant="secondary" 
+                      size="small"
+                      disabled={pagination.currentPage === 1}
+                      onClick={() => handlePageChange(pagination.currentPage - 1)}
                     >
                       Previous
                     </Button>
-                    
-                    <span className="affiliate-management__page-info">
-                      Page {currentPageNumber} of {totalPages}
+                    <span className="affiliate-management__pagination-info">
+                      Page {pagination.currentPage} of {pagination.totalPages}
                     </span>
-                    
-                    <Button
-                      variant="secondary"
-                      onClick={() => handlePageChange(currentPageNumber + 1)}
-                      disabled={currentPageNumber === totalPages}
+                    <Button 
+                      variant="secondary" 
+                      size="small"
+                      disabled={pagination.currentPage === pagination.totalPages}
+                      onClick={() => handlePageChange(pagination.currentPage + 1)}
                     >
                       Next
                     </Button>
@@ -367,121 +323,127 @@ export const AffiliateManagement = () => {
                 )}
               </>
             )}
-          </>
+          </div>
         )}
       </Card>
-      
+
       {isModalOpen && (
-        <div className="affiliate-management__modal">
-          <div className="affiliate-management__modal-content">
+        <div className="affiliate-management__modal-overlay">
+          <div className="affiliate-management__modal">
             <div className="affiliate-management__modal-header">
-              <h2>{currentAffiliate ? 'Edit Affiliate' : 'Add New Affiliate'}</h2>
+              <h2>
+                {currentApplication.attributes.status === 'pending' 
+                  ? 'Process Affiliate Application' 
+                  : 'View Affiliate Application'}
+              </h2>
               <Button 
                 variant="icon" 
-                icon="x" 
                 onClick={() => setIsModalOpen(false)}
-              />
+              >
+                <X size={18} />
+              </Button>
             </div>
-            <form onSubmit={handleFormSubmit}>
-              <div className="affiliate-management__form-group">
-                <Input
-                  label="Affiliate Name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleFormChange}
-                  required
-                />
+            
+            <div className="affiliate-management__application-details">
+              <div className="affiliate-management__detail-row">
+                <div className="affiliate-management__detail-label">User:</div>
+                <div className="affiliate-management__detail-value">
+                  {currentApplication.relationships?.user?.data?.attributes?.username}
+                  <div className="affiliate-management__detail-secondary">
+                    {currentApplication.relationships?.user?.data?.attributes?.email}
+                  </div>
+                </div>
               </div>
-              <div className="affiliate-management__form-group">
-                <Input
-                  label="Email Address"
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleFormChange}
-                  required
-                />
+              
+              <div className="affiliate-management__detail-row">
+                <div className="affiliate-management__detail-label">Status:</div>
+                <div className="affiliate-management__detail-value">
+                  <span className={`affiliate-management__status affiliate-management__status--${currentApplication.attributes.status}`}>
+                    {currentApplication.attributes.status}
+                  </span>
+                </div>
               </div>
-              <div className="affiliate-management__form-group">
-                <Input
-                  label="Website"
-                  type="url"
-                  name="website"
-                  placeholder="https://"
-                  value={formData.website}
-                  onChange={handleFormChange}
-                  required
-                />
+              
+              <div className="affiliate-management__detail-row">
+                <div className="affiliate-management__detail-label">Submitted:</div>
+                <div className="affiliate-management__detail-value">
+                  {formatDate(currentApplication.attributes.submitted_at)}
+                </div>
               </div>
-              <div className="affiliate-management__form-group">
-                <Input
-                  label="Commission Rate (%)"
-                  type="number"
-                  min="1"
-                  max="50"
-                  name="commission_rate"
-                  value={formData.commission_rate}
-                  onChange={handleFormChange}
-                  required
-                />
-              </div>
-              <div className="affiliate-management__form-group">
-                <label htmlFor="status">Status</label>
-                <select
-                  id="status"
-                  name="status"
-                  value={formData.status}
-                  onChange={handleFormChange}
-                  required
-                >
-                  <option value="active">Active</option>
-                  <option value="pending">Pending</option>
-                  <option value="suspended">Suspended</option>
-                </select>
-              </div>
-              <div className="affiliate-management__form-group">
-                <label htmlFor="payment_method">Payment Method</label>
-                <select
-                  id="payment_method"
-                  name="payment_method"
-                  value={formData.payment_method}
-                  onChange={handleFormChange}
-                  required
-                >
-                  <option value="bank_transfer">Bank Transfer</option>
-                  <option value="paypal">PayPal</option>
-                  <option value="crypto">Cryptocurrency</option>
-                  <option value="check">Check</option>
-                </select>
-              </div>
-              <div className="affiliate-management__form-group">
-                <Input
-                  label="Payment Details"
-                  name="payment_details"
-                  value={formData.payment_details}
-                  onChange={handleFormChange}
-                  required
-                  multiline
-                  rows={3}
-                />
-              </div>
+              
+              {currentApplication.attributes.processed_at && (
+                <div className="affiliate-management__detail-row">
+                  <div className="affiliate-management__detail-label">Processed:</div>
+                  <div className="affiliate-management__detail-value">
+                    {formatDate(currentApplication.attributes.processed_at)}
+                  </div>
+                </div>
+              )}
+              
+              {currentApplication.attributes.notes && (
+                <div className="affiliate-management__detail-row">
+                  <div className="affiliate-management__detail-label">Notes:</div>
+                  <div className="affiliate-management__detail-value">
+                    {currentApplication.attributes.notes}
+                  </div>
+                </div>
+              )}
+            </div>
+            
+            {currentApplication.attributes.status === 'pending' && (
+              <form>
+                <div className="affiliate-management__form-group">
+                  <label htmlFor="notes">Admin Notes</label>
+                  <textarea
+                    id="notes"
+                    name="notes"
+                    value={formData.notes}
+                    onChange={handleFormChange}
+                    className="affiliate-management__textarea"
+                    rows={3}
+                    placeholder="Add notes about this application..."
+                  />
+                </div>
+                
+                <div className="affiliate-management__form-actions">
+                  <Button 
+                    variant="secondary" 
+                    type="button" 
+                    onClick={() => setIsModalOpen(false)}
+                  >
+                    Cancel
+                  </Button>
+                  <Button 
+                    variant="error" 
+                    type="button"
+                    onClick={handleRejectApplication}
+                    disabled={loading}
+                  >
+                    Reject
+                  </Button>
+                  <Button 
+                    variant="primary" 
+                    type="button"
+                    onClick={handleApproveApplication}
+                    disabled={loading}
+                  >
+                    Approve
+                  </Button>
+                </div>
+              </form>
+            )}
+            
+            {currentApplication.attributes.status !== 'pending' && (
               <div className="affiliate-management__form-actions">
                 <Button 
                   variant="secondary" 
                   type="button" 
                   onClick={() => setIsModalOpen(false)}
                 >
-                  Cancel
-                </Button>
-                <Button 
-                  variant="primary" 
-                  type="submit"
-                  disabled={loading}
-                >
-                  {loading ? 'Saving...' : (currentAffiliate ? 'Update Affiliate' : 'Add Affiliate')}
+                  Close
                 </Button>
               </div>
-            </form>
+            )}
           </div>
         </div>
       )}

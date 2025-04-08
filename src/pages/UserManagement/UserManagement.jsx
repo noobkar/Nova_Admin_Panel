@@ -1,109 +1,95 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Edit, Trash, X, AlertCircle, Search } from 'react-feather';
 import { useApi } from '../../hooks/useApi';
-import { useNavigation } from '../../hooks/useNavigation';
-import { getApiData, mockApi, apiService } from '../../services/api';
 import { Card } from '../../components/common/Card/Card';
 import { Button } from '../../components/common/Button/Button';
 import { Input } from '../../components/common/Input/Input';
-import { Edit, Trash, X, AlertCircle, Search } from 'react-feather';
 import './UserManagement.scss';
 
 export const UserManagement = () => {
-  const navigate = useNavigate();
-  const { setCurrentPage } = useNavigation();
-  
+  // State
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
     totalCount: 0
   });
   const [formData, setFormData] = useState({
-    name: '',
     email: '',
-    role: 'user',
+    username: '',
     status: 'active',
     password: '',
     password_confirmation: ''
   });
 
-  useEffect(() => {
-    // Set the current page for navigation context
-    setCurrentPage('User Management');
-    fetchUsers();
-  }, [setCurrentPage, selectedStatus]);
+  // Hooks
+  const { 
+    loading, 
+    error, 
+    fetchUsers,
+    fetchUserDetails,
+    createUser,
+    updateUser,
+    deleteUser
+  } = useApi();
 
-  const fetchUsers = async (page = 1) => {
-    setLoading(true);
+  // Load users on mount and when filters change
+  useEffect(() => {
+    loadUsers(pagination.currentPage);
+  }, [selectedStatus]);
+
+  // Load users function
+  const loadUsers = async (page = 1) => {
     try {
-      const params = {
-        page,
-        perPage: 10,
-        status: selectedStatus !== 'all' ? selectedStatus : undefined
-      };
+      const data = await fetchUsers(page, 10, searchTerm, selectedStatus !== 'all' ? selectedStatus : null);
       
-      const response = await getApiData('/admin/users', mockApi.getUsers, params);
-      
-      // Extract user data and transform if necessary
-      let userData = [];
-      let paginationData = { currentPage: 1, totalPages: 1, totalCount: 0 };
-      
-      if (response && response.data && Array.isArray(response.data)) {
-        // Format from the API with data array and pagination in meta
-        userData = response.data.map(user => ({
-          id: user.id,
-          name: user.attributes.name,
-          email: user.attributes.email,
-          role: user.attributes.role,
-          status: user.attributes.status,
-          created_at: user.attributes.created_at,
-          updated_at: user.attributes.updated_at
-        }));
+      if (data && data.data) {
+        setUsers(data.data);
         
-        if (response.meta) {
-          paginationData = {
-            currentPage: response.meta.current_page,
-            totalPages: response.meta.total_pages,
-            totalCount: response.meta.total_count
-          };
+        if (data.meta) {
+          setPagination({
+            currentPage: data.meta.current_page,
+            totalPages: data.meta.total_pages,
+            totalCount: data.meta.total_count
+          });
         }
-      } else if (Array.isArray(response)) {
-        // Simple array format (likely from mock data)
-        userData = response;
+      } else {
+        setUsers([]);
       }
-      
-      setUsers(userData);
-      setPagination(paginationData);
-      setError(null);
     } catch (err) {
-      console.error('Error fetching users:', err);
-      setError('Failed to load users data');
-    } finally {
-      setLoading(false);
+      console.error('Error loading users:', err);
     }
   };
 
+  // Search handling
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
   };
+  
+  // Apply search with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadUsers(1); // Reset to first page on search
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
+  // Status filter handling
   const handleStatusFilter = (status) => {
     setSelectedStatus(status);
   };
 
+  // Add user
   const handleAddUser = () => {
     setCurrentUser(null);
     setFormData({
-      name: '',
       email: '',
-      role: 'user',
+      username: '',
       status: 'active',
       password: '',
       password_confirmation: ''
@@ -111,118 +97,87 @@ export const UserManagement = () => {
     setIsModalOpen(true);
   };
 
+  // Edit user
   const handleEditUser = async (user) => {
-    setLoading(true);
     try {
-      // For edit, we want to fetch the complete user details
-      const userDetails = await getApiData(`/admin/users/${user.id}`, 
-        () => ({ data: { attributes: user } }),
-        { userId: user.id }
-      );
+      const userData = await fetchUserDetails(user.id);
       
-      const userData = userDetails.attributes || userDetails;
-      
-      setCurrentUser(userData);
-      setFormData({
-        name: userData.name,
-        email: userData.email,
-        role: userData.role || 'user',
-        status: userData.status,
-        password: '',
-        password_confirmation: ''
-      });
-      setIsModalOpen(true);
+      if (userData) {
+        setCurrentUser(userData.data);
+        setFormData({
+          email: userData.data.attributes.email,
+          username: userData.data.attributes.username,
+          status: userData.data.attributes.status,
+          password: '',
+          password_confirmation: ''
+        });
+        setIsModalOpen(true);
+      }
     } catch (err) {
-      console.error('Error fetching user details:', err);
-      alert('Failed to load user details for editing');
-    } finally {
-      setLoading(false);
+      console.error('Error loading user details:', err);
     }
   };
 
+  // Delete user
   const handleDeleteUser = async (id) => {
     if (window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-      setLoading(true);
       try {
-        await getApiData(`/admin/users/${id}/delete`, () => {}, { userId: id });
-        
-        // Remove the user from the UI
-        setUsers(users.filter(user => user.id !== id));
-        alert('User deleted successfully');
+        await deleteUser(id);
+        loadUsers(pagination.currentPage);
       } catch (err) {
         console.error('Error deleting user:', err);
-        alert('Failed to delete user');
-      } finally {
-        setLoading(false);
       }
     }
   };
 
+  // Form change handler
   const handleFormChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Form submit handler
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     
-    const isEditing = !!currentUser;
-    setLoading(true);
+    // Validate form
+    if (formData.password !== formData.password_confirmation) {
+      alert('Passwords do not match');
+      return;
+    }
     
     try {
-      const formDataToSend = {
-        name: formData.name,
-        email: formData.email,
-        role: formData.role,
-        status: formData.status,
-      };
-      
-      // Add password fields only if they are filled in
-      if (formData.password) {
-        formDataToSend.password = formData.password;
-        formDataToSend.password_confirmation = formData.password_confirmation;
-      }
-      
-      if (isEditing) {
+      if (currentUser) {
         // Edit existing user
-        await getApiData(`/admin/users/${currentUser.id}/update`, () => {}, {
-          userId: currentUser.id,
-          userData: formDataToSend
-        });
+        const userData = { ...formData };
         
-        alert('User updated successfully');
-      } else {
-        // Password is required for new users
-        if (!formData.password) {
-          alert('Password is required for new users');
-          setLoading(false);
-          return;
+        // Only include password if provided
+        if (!userData.password) {
+          delete userData.password;
+          delete userData.password_confirmation;
         }
         
-        // Add new user
-        await getApiData('/admin/users/create', () => {}, {
-          userData: formDataToSend
-        });
-        
-        alert('User created successfully');
+        await updateUser(currentUser.id, userData);
+      } else {
+        // Create new user
+        await createUser(formData);
       }
       
-      // Close modal and refresh the user list
       setIsModalOpen(false);
-      fetchUsers();
+      loadUsers(pagination.currentPage);
     } catch (err) {
       console.error('Error saving user:', err);
-      alert(`Failed to ${isEditing ? 'update' : 'create'} user: ${err.message || 'Unknown error'}`);
-    } finally {
-      setLoading(false);
     }
   };
 
+  // Pagination handler
+  const handlePageChange = (page) => {
+    loadUsers(page);
+  };
+
+  // Format date for display
   const formatDate = (dateString) => {
-    if (!dateString) return 'Not available';
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
       year: 'numeric', 
@@ -231,22 +186,17 @@ export const UserManagement = () => {
     });
   };
 
-  // Filter users based on search term
-  const filteredUsers = users.filter(user => {
-    return user.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-           user.email?.toLowerCase().includes(searchTerm.toLowerCase());
-  });
-
-  const handlePageChange = (page) => {
-    fetchUsers(page);
-  };
-
   return (
     <div className="user-management">
       <Card>
         <div className="user-management__header">
           <h2 className="user-management__title">User Management</h2>
-          <Button onClick={handleAddUser} variant="primary">Add User</Button>
+          <Button 
+            variant="primary" 
+            onClick={handleAddUser}
+          >
+            Add User
+          </Button>
         </div>
         
         <div className="user-management__filters">
@@ -262,32 +212,32 @@ export const UserManagement = () => {
           
           <div className="user-management__status-filters">
             <Button 
-              variant={selectedStatus === 'all' ? 'primary' : 'outline'}
+              variant={selectedStatus === 'all' ? 'primary' : 'secondary'}
               size="small"
               onClick={() => handleStatusFilter('all')}
             >
               All
             </Button>
             <Button 
-              variant={selectedStatus === 'active' ? 'primary' : 'outline'}
+              variant={selectedStatus === 'active' ? 'primary' : 'secondary'}
               size="small"
               onClick={() => handleStatusFilter('active')}
             >
               Active
             </Button>
             <Button 
-              variant={selectedStatus === 'inactive' ? 'primary' : 'outline'} 
+              variant={selectedStatus === 'inactive' ? 'primary' : 'secondary'} 
               size="small"
               onClick={() => handleStatusFilter('inactive')}
             >
               Inactive
             </Button>
             <Button 
-              variant={selectedStatus === 'suspended' ? 'primary' : 'outline'} 
+              variant={selectedStatus === 'pending' ? 'primary' : 'secondary'} 
               size="small"
-              onClick={() => handleStatusFilter('suspended')}
+              onClick={() => handleStatusFilter('pending')}
             >
-              Suspended
+              Pending
             </Button>
           </div>
         </div>
@@ -301,40 +251,35 @@ export const UserManagement = () => {
           <div className="user-management__error">{error}</div>
         ) : (
           <div className="user-management__table-container">
-            {filteredUsers.length === 0 ? (
+            {users.length === 0 ? (
               <div className="user-management__empty">
-                No users match your search criteria.
+                No users found. Try adjusting your search or filters.
               </div>
             ) : (
               <>
                 <table className="user-management__table">
                   <thead>
                     <tr>
-                      <th>Name</th>
+                      <th>Username</th>
                       <th>Email</th>
-                      <th>Role</th>
                       <th>Status</th>
                       <th>Created</th>
+                      <th>Last Login</th>
                       <th>Actions</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {filteredUsers.map(user => (
+                    {users.map(user => (
                       <tr key={user.id}>
-                        <td>{user.name}</td>
-                        <td>{user.email}</td>
+                        <td>{user.attributes.username}</td>
+                        <td>{user.attributes.email}</td>
                         <td>
-                          <span className={`user-management__role user-management__role--${user.role}`}>
-                            {user.role === 'admin' ? 'Administrator' : 
-                              user.role === 'manager' ? 'Manager' : 'User'}
+                          <span className={`user-management__status user-management__status--${user.attributes.status}`}>
+                            {user.attributes.status}
                           </span>
                         </td>
-                        <td>
-                          <span className={`user-management__status user-management__status--${user.status}`}>
-                            {user.status}
-                          </span>
-                        </td>
-                        <td>{formatDate(user.created_at)}</td>
+                        <td>{formatDate(user.attributes.created_at)}</td>
+                        <td>{formatDate(user.attributes.last_login)}</td>
                         <td className="user-management__actions">
                           <Button
                             variant="icon"
@@ -359,7 +304,7 @@ export const UserManagement = () => {
                 {pagination.totalPages > 1 && (
                   <div className="user-management__pagination">
                     <Button 
-                      variant="outline" 
+                      variant="secondary" 
                       size="small"
                       disabled={pagination.currentPage === 1}
                       onClick={() => handlePageChange(pagination.currentPage - 1)}
@@ -370,7 +315,7 @@ export const UserManagement = () => {
                       Page {pagination.currentPage} of {pagination.totalPages}
                     </span>
                     <Button 
-                      variant="outline" 
+                      variant="secondary" 
                       size="small"
                       disabled={pagination.currentPage === pagination.totalPages}
                       onClick={() => handlePageChange(pagination.currentPage + 1)}
@@ -400,15 +345,6 @@ export const UserManagement = () => {
             <form onSubmit={handleFormSubmit}>
               <div className="user-management__form-group">
                 <Input
-                  label="Full Name"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleFormChange}
-                  required
-                />
-              </div>
-              <div className="user-management__form-group">
-                <Input
                   label="Email Address"
                   type="email"
                   name="email"
@@ -418,19 +354,13 @@ export const UserManagement = () => {
                 />
               </div>
               <div className="user-management__form-group">
-                <label htmlFor="role">Role</label>
-                <select
-                  id="role"
-                  name="role"
-                  value={formData.role}
+                <Input
+                  label="Username"
+                  name="username"
+                  value={formData.username}
                   onChange={handleFormChange}
                   required
-                  className="user-management__select"
-                >
-                  <option value="user">User</option>
-                  <option value="manager">Manager</option>
-                  <option value="admin">Administrator</option>
-                </select>
+                />
               </div>
               <div className="user-management__form-group">
                 <label htmlFor="status">Status</label>
@@ -444,12 +374,12 @@ export const UserManagement = () => {
                 >
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
-                  <option value="suspended">Suspended</option>
+                  <option value="pending">Pending</option>
                 </select>
               </div>
               <div className="user-management__form-group">
                 <Input
-                  label={`${currentUser ? 'New Password (leave blank to keep current)' : 'Password'}`}
+                  label={currentUser ? "New Password (leave blank to keep current)" : "Password"}
                   type="password"
                   name="password"
                   value={formData.password}
@@ -477,14 +407,16 @@ export const UserManagement = () => {
                   variant="secondary" 
                   type="button" 
                   onClick={() => setIsModalOpen(false)}
-                  disabled={loading}
                 >
                   Cancel
                 </Button>
                 <Button 
                   variant="primary" 
                   type="submit"
-                  disabled={loading || (formData.password !== formData.password_confirmation && formData.password_confirmation)}
+                  disabled={
+                    loading || 
+                    (formData.password !== formData.password_confirmation && formData.password_confirmation)
+                  }
                 >
                   {loading ? 'Saving...' : (currentUser ? 'Update User' : 'Add User')}
                 </Button>
@@ -496,3 +428,5 @@ export const UserManagement = () => {
     </div>
   );
 };
+
+export default UserManagement;

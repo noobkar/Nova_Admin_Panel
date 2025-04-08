@@ -1,17 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useNavigation } from '../../hooks/useNavigation';
-import { getApiData, mockApi, apiService } from '../../services/api';
+import { Edit, Trash, Search, RefreshCw, UserCheck, UserX } from 'react-feather';
+import { useApi } from '../../hooks/useApi';
 import { Card } from '../../components/common/Card/Card';
 import { Button } from '../../components/common/Button/Button';
 import { Input } from '../../components/common/Input/Input';
-import { Edit, Trash, AlertCircle, Search, RefreshCw, UserCheck, UserX } from 'react-feather';
+import { Loading } from '../../components/common/Loading/Loading';
+import { EmptyState } from '../../components/common/EmptyState/EmptyState';
+import { ErrorMessage } from '../../components/common/ErrorMessage/ErrorMessage';
 import './ServerAssignment.scss';
 
 export const ServerAssignment = () => {
-  const navigate = useNavigate();
-  const { setCurrentPage } = useNavigation();
-  
+  // State
   const [assignments, setAssignments] = useState([]);
   const [users, setUsers] = useState([]);
   const [servers, setServers] = useState([]);
@@ -19,8 +18,6 @@ export const ServerAssignment = () => {
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentAssignment, setCurrentAssignment] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -30,313 +27,267 @@ export const ServerAssignment = () => {
     user_id: '',
     server_id: '',
     status: 'active',
+    is_premium: false,
+    is_public: false,
     expires_at: '',
-    bandwidth_limit: 0
+    bandwidth_limit: 500
   });
 
+  // API hooks
+  const { 
+    loading, 
+    error, 
+    fetchServerAssignments,
+    fetchUsers,
+    fetchServers,
+    createServerAssignment,
+    updateServerAssignment,
+    deleteServerAssignment,
+    approveRequest,
+    rejectRequest
+  } = useApi();
+
+  // Load assignments, users, servers on mount
   useEffect(() => {
-    setCurrentPage('Server Assignment');
-    fetchAssignments();
-    fetchUsers();
-    fetchServers();
-  }, [setCurrentPage, selectedStatus]);
+    loadAssignments(pagination.currentPage);
+    loadUsers();
+    loadServers();
+  }, [selectedStatus]);
 
-  const fetchAssignments = async (page = 1) => {
-    setLoading(true);
+  // Load assignments function
+  const loadAssignments = async (page = 1) => {
     try {
-      const params = {
-        page,
-        perPage: 10,
-        status: selectedStatus !== 'all' ? selectedStatus : undefined
-      };
+      const data = await fetchServerAssignments(
+        page, 
+        10, 
+        selectedStatus !== 'all' ? selectedStatus : null
+      );
       
-      const response = await getApiData('/admin/assignments', mockApi.getAssignments, params);
-      
-      // Extract assignment data and transform if necessary
-      let assignmentData = [];
-      let paginationData = { currentPage: 1, totalPages: 1, totalCount: 0 };
-      
-      if (response && response.data && Array.isArray(response.data)) {
-        // Format from the API with data array and pagination in meta
-        assignmentData = response.data.map(assignment => ({
-          id: assignment.id,
-          user_id: assignment.attributes.user_id,
-          server_id: assignment.attributes.server_id,
-          status: assignment.attributes.status,
-          created_at: assignment.attributes.created_at,
-          expires_at: assignment.attributes.expires_at,
-          bandwidth_limit: assignment.attributes.bandwidth_limit,
-          current_usage: assignment.attributes.current_usage
-        }));
+      if (data && data.data) {
+        setAssignments(data.data);
         
-        if (response.meta) {
-          paginationData = {
-            currentPage: response.meta.current_page,
-            totalPages: response.meta.total_pages,
-            totalCount: response.meta.total_count
-          };
+        if (data.meta) {
+          setPagination({
+            currentPage: data.meta.current_page,
+            totalPages: data.meta.total_pages,
+            totalCount: data.meta.total_count
+          });
         }
-      } else if (Array.isArray(response)) {
-        // Simple array format (likely from mock data)
-        assignmentData = response;
+      } else {
+        setAssignments([]);
       }
-      
-      setAssignments(assignmentData);
-      setPagination(paginationData);
-      setError(null);
     } catch (err) {
-      console.error('Error fetching assignments:', err);
-      setError('Failed to load assignment data');
-    } finally {
-      setLoading(false);
+      console.error('Error loading assignments:', err);
     }
   };
 
-  const fetchUsers = async () => {
+  // Load users function
+  const loadUsers = async () => {
     try {
-      const response = await getApiData('/admin/users', mockApi.getUsers, { perPage: 100 });
-      
-      let userData = [];
-      
-      if (response && response.data && Array.isArray(response.data)) {
-        // Format from the API with data array
-        userData = response.data.map(user => ({
-          id: user.id,
-          name: user.attributes.name,
-          email: user.attributes.email,
-          status: user.attributes.status
-        }));
-      } else if (Array.isArray(response)) {
-        // Simple array format (likely from mock data)
-        userData = response;
+      const data = await fetchUsers(1, 100, null, 'active');
+      if (data && data.data) {
+        setUsers(data.data);
       }
-      
-      setUsers(userData.filter(user => user.status === 'active'));
     } catch (err) {
-      console.error('Error fetching users:', err);
-      setError(prev => prev || 'Failed to load user data');
+      console.error('Error loading users:', err);
     }
   };
 
-  const fetchServers = async () => {
+  // Load servers function
+  const loadServers = async () => {
     try {
-      const response = await getApiData('/admin/servers', mockApi.getServers, { perPage: 100 });
-      
-      let serverData = [];
-      
-      if (response && response.data && Array.isArray(response.data)) {
-        // Format from the API with data array
-        serverData = response.data.map(server => ({
-          id: server.id,
-          name: server.attributes.name,
-          location: server.attributes.description || 'Unknown',
-          status: server.attributes.status,
-          server_type: server.attributes.server_type
-        }));
-      } else if (Array.isArray(response)) {
-        // Simple array format (likely from mock data)
-        serverData = response;
+      const data = await fetchServers(1, 100, 'active');
+      if (data && data.data) {
+        setServers(data.data);
       }
-      
-      setServers(serverData);
     } catch (err) {
-      console.error('Error fetching servers:', err);
-      setError(prev => prev || 'Failed to load server data');
+      console.error('Error loading servers:', err);
     }
   };
 
+  // Search handling
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
   };
+  
+  // Apply search with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      // For assignments, we'll filter client-side since the API doesn't 
+      // support searching on user or server name
+      // In a real app, this would ideally be done on the server
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
+  // Status filter handling
   const handleStatusFilter = (status) => {
     setSelectedStatus(status);
   };
 
+  // Add assignment
   const handleAddAssignment = () => {
-    setCurrentAssignment(null);
-    
     // Set default expiration date to 1 year from now
     const oneYearFromNow = new Date();
     oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
     const formattedDate = oneYearFromNow.toISOString().split('T')[0]; // Format as YYYY-MM-DD
     
+    setCurrentAssignment(null);
     setFormData({
       user_id: '',
       server_id: '',
       status: 'active',
+      is_premium: false,
+      is_public: false,
       expires_at: formattedDate,
-      bandwidth_limit: 500 // Default bandwidth 500GB
+      bandwidth_limit: 500
     });
-    
     setIsModalOpen(true);
   };
 
-  const handleEditAssignment = async (assignment) => {
-    setLoading(true);
-    try {
-      // For edit, we want to fetch the complete assignment details
-      const assignmentDetails = await getApiData(`/admin/assignments/${assignment.id}`, 
-        () => ({ data: { attributes: assignment } }),
-        { assignmentId: assignment.id }
-      );
-      
-      const assignmentData = assignmentDetails.attributes || assignmentDetails;
-      
-      setCurrentAssignment(assignmentData);
-      
-      // Format expires_at as YYYY-MM-DD for the date input
-      let expiresAt = '';
-      if (assignmentData.expires_at) {
-        expiresAt = new Date(assignmentData.expires_at).toISOString().split('T')[0];
-      }
-      
-      setFormData({
-        user_id: assignmentData.user_id?.toString() || '',
-        server_id: assignmentData.server_id?.toString() || '',
-        status: assignmentData.status || 'active',
-        expires_at: expiresAt,
-        bandwidth_limit: assignmentData.bandwidth_limit || 0
-      });
-      
-      setIsModalOpen(true);
-    } catch (err) {
-      console.error('Error fetching assignment details:', err);
-      alert('Failed to load assignment details for editing');
-    } finally {
-      setLoading(false);
+  // Edit assignment
+  const handleEditAssignment = (assignment) => {
+    // Parse expires_at date for form
+    let expiresAt = '';
+    if (assignment.attributes.expires_at) {
+      expiresAt = new Date(assignment.attributes.expires_at).toISOString().split('T')[0];
     }
+    
+    setCurrentAssignment(assignment);
+    setFormData({
+      user_id: assignment.attributes.user_id,
+      server_id: assignment.attributes.server_id,
+      status: assignment.attributes.status,
+      is_premium: assignment.attributes.is_premium || false,
+      is_public: assignment.attributes.is_public || false,
+      expires_at: expiresAt,
+      bandwidth_limit: assignment.attributes.bandwidth_limit || 500
+    });
+    setIsModalOpen(true);
   };
 
+  // Delete assignment
   const handleDeleteAssignment = async (id) => {
     if (window.confirm('Are you sure you want to delete this assignment?')) {
-      setLoading(true);
       try {
-        await getApiData(`/admin/assignments/${id}/delete`, () => {}, { assignmentId: id });
-        
-        // Remove the assignment from the UI
-        setAssignments(assignments.filter(assignment => assignment.id !== id));
-        alert('Assignment deleted successfully');
+        await deleteServerAssignment(id);
+        loadAssignments(pagination.currentPage);
       } catch (err) {
         console.error('Error deleting assignment:', err);
-        alert('Failed to delete assignment');
-      } finally {
-        setLoading(false);
       }
     }
   };
 
+  // Update assignment status
   const handleAssignmentStatus = async (id, newStatus) => {
-    setLoading(true);
     try {
-      const assignment = assignments.find(a => a.id === id);
-      if (!assignment) throw new Error('Assignment not found');
+      const assignmentToUpdate = assignments.find(a => a.id === id);
+      if (!assignmentToUpdate) return;
       
-      const updatedData = {
+      await updateServerAssignment(id, {
+        ...assignmentToUpdate.attributes,
         status: newStatus
-      };
-      
-      await getApiData(`/admin/assignments/${id}/update`, () => {}, { 
-        assignmentId: id,
-        assignmentData: updatedData
       });
       
-      // Update the assignment status in the UI
-      setAssignments(assignments.map(assignment => 
-        assignment.id === id 
-          ? { ...assignment, status: newStatus } 
-          : assignment
-      ));
+      loadAssignments(pagination.currentPage);
     } catch (err) {
       console.error('Error updating assignment status:', err);
-      alert('Failed to update assignment status');
-    } finally {
-      setLoading(false);
     }
   };
 
+  // Form change handler
   const handleFormChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    const { name, value, type, checked } = e.target;
+    
+    // Handle checkbox inputs
+    if (type === 'checkbox') {
+      setFormData(prev => ({ ...prev, [name]: checked }));
+    } else {
+      setFormData(prev => ({ ...prev, [name]: value }));
+    }
   };
 
+  // Form submit handler
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     
-    const isEditing = !!currentAssignment;
-    setLoading(true);
-    
     try {
-      const formDataToSend = {
-        user_id: parseInt(formData.user_id),
-        server_id: parseInt(formData.server_id),
-        status: formData.status,
-        expires_at: formData.expires_at ? new Date(formData.expires_at).toISOString() : null,
-        bandwidth_limit: parseInt(formData.bandwidth_limit)
+      // Format form data for API
+      const assignmentData = {
+        ...formData,
+        user_id: Number(formData.user_id),
+        server_id: Number(formData.server_id),
+        bandwidth_limit: Number(formData.bandwidth_limit),
+        // Convert YYYY-MM-DD to ISO date string if exists
+        expires_at: formData.expires_at ? new Date(formData.expires_at).toISOString() : null
       };
       
-      if (isEditing) {
-        // Edit existing assignment
-        await getApiData(`/admin/assignments/${currentAssignment.id}/update`, () => {}, {
-          assignmentId: currentAssignment.id,
-          assignmentData: formDataToSend
-        });
-        
-        alert('Assignment updated successfully');
+      if (currentAssignment) {
+        // Update existing assignment
+        await updateServerAssignment(currentAssignment.id, assignmentData);
       } else {
-        // Add new assignment
-        await getApiData('/admin/assignments/create', () => {}, {
-          assignmentData: formDataToSend
-        });
-        
-        alert('Assignment created successfully');
+        // Create new assignment
+        await createServerAssignment(assignmentData);
       }
       
-      // Close modal and refresh the assignment list
       setIsModalOpen(false);
-      fetchAssignments();
+      loadAssignments(pagination.currentPage);
     } catch (err) {
       console.error('Error saving assignment:', err);
-      alert(`Failed to ${isEditing ? 'update' : 'create'} assignment`);
-    } finally {
-      setLoading(false);
     }
   };
 
+  // Handle approve request
+  const handleApproveRequest = async (id) => {
+    if (window.confirm('Are you sure you want to approve this server request?')) {
+      try {
+        await approveRequest(id);
+        loadAssignments(pagination.currentPage);
+      } catch (err) {
+        console.error('Error approving request:', err);
+      }
+    }
+  };
+
+  // Handle reject request
+  const handleRejectRequest = async (id) => {
+    if (window.confirm('Are you sure you want to reject this server request?')) {
+      try {
+        await rejectRequest(id);
+        loadAssignments(pagination.currentPage);
+      } catch (err) {
+        console.error('Error rejecting request:', err);
+      }
+    }
+  };
+
+  // Pagination handler
+  const handlePageChange = (page) => {
+    loadAssignments(page);
+  };
+
+  // Format date for display
   const formatDate = (dateString) => {
-    if (!dateString) return 'Not available';
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
       year: 'numeric', 
       month: 'short', 
-      day: 'numeric' 
+      day: 'numeric'
     });
   };
 
+  // Helper to get user name from ID
   const getUserName = (userId) => {
-    const user = users.find(u => u.id == userId);
-    return user ? user.name : 'Unknown User';
+    const user = users.find(u => u.id === userId.toString());
+    return user ? user.attributes.username : 'Unknown User';
   };
 
+  // Helper to get server name from ID
   const getServerName = (serverId) => {
-    const server = servers.find(s => s.id == serverId);
-    return server ? server.name : 'Unknown Server';
-  };
-
-  // Filter assignments based on search term
-  const filteredAssignments = assignments.filter(assignment => {
-    const userName = getUserName(assignment.user_id).toLowerCase();
-    const serverName = getServerName(assignment.server_id).toLowerCase();
-    
-    return userName.includes(searchTerm.toLowerCase()) || 
-           serverName.includes(searchTerm.toLowerCase());
-  });
-
-  const handlePageChange = (page) => {
-    fetchAssignments(page);
+    const server = servers.find(s => s.id === serverId.toString());
+    return server ? server.attributes.name : 'Unknown Server';
   };
 
   // Calculate bandwidth usage percentage
@@ -345,6 +296,17 @@ export const ServerAssignment = () => {
     const percentage = (current / limit) * 100;
     return Math.min(percentage, 100); // Cap at 100%
   };
+
+  // Filter assignments based on search term
+  const filteredAssignments = assignments.filter(assignment => {
+    if (!searchTerm) return true;
+    
+    const userName = getUserName(assignment.attributes.user_id).toLowerCase();
+    const serverName = getServerName(assignment.attributes.server_id).toLowerCase();
+    
+    return userName.includes(searchTerm.toLowerCase()) || 
+           serverName.includes(searchTerm.toLowerCase());
+  });
 
   return (
     <div className="server-assignment">
@@ -367,49 +329,65 @@ export const ServerAssignment = () => {
           
           <div className="server-assignment__status-filters">
             <Button 
-              variant={selectedStatus === 'all' ? 'primary' : 'outline'}
+              variant={selectedStatus === 'all' ? 'primary' : 'secondary'}
               size="small"
               onClick={() => handleStatusFilter('all')}
             >
               All
             </Button>
             <Button 
-              variant={selectedStatus === 'active' ? 'primary' : 'outline'}
+              variant={selectedStatus === 'active' ? 'primary' : 'secondary'}
               size="small"
               onClick={() => handleStatusFilter('active')}
             >
               Active
             </Button>
             <Button 
-              variant={selectedStatus === 'suspended' ? 'primary' : 'outline'} 
+              variant={selectedStatus === 'inactive' ? 'primary' : 'secondary'} 
               size="small"
-              onClick={() => handleStatusFilter('suspended')}
+              onClick={() => handleStatusFilter('inactive')}
             >
-              Suspended
+              Inactive
             </Button>
             <Button 
-              variant={selectedStatus === 'expired' ? 'primary' : 'outline'} 
+              variant={selectedStatus === 'expired' ? 'primary' : 'secondary'} 
               size="small"
               onClick={() => handleStatusFilter('expired')}
             >
               Expired
             </Button>
+            <Button 
+              variant={selectedStatus === 'pending' ? 'primary' : 'secondary'} 
+              size="small"
+              onClick={() => handleStatusFilter('pending')}
+            >
+              Pending
+            </Button>
           </div>
         </div>
         
         {loading ? (
-          <div className="server-assignment__loading">
-            <AlertCircle size={20} />
-            <span>Loading assignments...</span>
-          </div>
+          <Loading message="Loading server assignments..." />
         ) : error ? (
-          <div className="server-assignment__error">{error}</div>
+          <ErrorMessage 
+            message={error} 
+            retryAction={() => loadAssignments(pagination.currentPage)}
+          />
         ) : (
           <div className="server-assignment__table-container">
             {filteredAssignments.length === 0 ? (
-              <div className="server-assignment__empty">
-                No assignments match your search criteria.
-              </div>
+              <EmptyState 
+                message="No server assignments found. Try adjusting your search or filters."
+                icon={RefreshCw}
+                action={
+                  <Button 
+                    variant="primary" 
+                    onClick={handleAddAssignment}
+                  >
+                    Create New Assignment
+                  </Button>
+                }
+              />
             ) : (
               <>
                 <table className="server-assignment__table">
@@ -418,7 +396,7 @@ export const ServerAssignment = () => {
                       <th>User</th>
                       <th>Server</th>
                       <th>Status</th>
-                      <th>Bandwidth</th>
+                      <th>Type</th>
                       <th>Expires</th>
                       <th>Actions</th>
                     </tr>
@@ -426,63 +404,74 @@ export const ServerAssignment = () => {
                   <tbody>
                     {filteredAssignments.map(assignment => (
                       <tr key={assignment.id}>
-                        <td>{getUserName(assignment.user_id)}</td>
-                        <td>{getServerName(assignment.server_id)}</td>
+                        <td>{getUserName(assignment.attributes.user_id)}</td>
+                        <td>{getServerName(assignment.attributes.server_id)}</td>
                         <td>
-                          <span className={`server-assignment__status server-assignment__status--${assignment.status}`}>
-                            {assignment.status}
+                          <span className={`server-assignment__status server-assignment__status--${assignment.attributes.status}`}>
+                            {assignment.attributes.status}
                           </span>
                         </td>
                         <td>
-                          <div className="server-assignment__bandwidth">
-                            <div className="server-assignment__bandwidth-info">
-                              {assignment.current_usage || 0} / {assignment.bandwidth_limit || 0} GB
-                            </div>
-                            <div className="server-assignment__bandwidth-bar">
-                              <div 
-                                className="server-assignment__bandwidth-progress"
-                                style={{ 
-                                  width: `${calculateUsagePercentage(assignment.current_usage, assignment.bandwidth_limit)}%`,
-                                  backgroundColor: calculateUsagePercentage(assignment.current_usage, assignment.bandwidth_limit) > 90 ? '#e74c3c' : '#3498db'
-                                }}
-                              ></div>
-                            </div>
-                          </div>
+                          <span className={`server-assignment__type ${assignment.attributes.is_premium ? 'server-assignment__type--premium' : ''}`}>
+                            {assignment.attributes.is_premium ? 'Premium' : 'Standard'}
+                          </span>
                         </td>
-                        <td>{formatDate(assignment.expires_at)}</td>
+                        <td>{formatDate(assignment.attributes.expires_at)}</td>
                         <td className="server-assignment__actions">
-                          {assignment.status !== 'active' && (
-                            <Button
-                              variant="icon"
-                              onClick={() => handleAssignmentStatus(assignment.id, 'active')}
-                              title="Activate Assignment"
-                            >
-                              <UserCheck size={16} />
-                            </Button>
+                          {assignment.attributes.status === 'pending' && (
+                            <>
+                              <Button
+                                variant="icon"
+                                onClick={() => handleApproveRequest(assignment.id)}
+                                title="Approve Request"
+                              >
+                                <UserCheck size={16} />
+                              </Button>
+                              <Button
+                                variant="icon"
+                                onClick={() => handleRejectRequest(assignment.id)}
+                                title="Reject Request"
+                              >
+                                <UserX size={16} />
+                              </Button>
+                            </>
                           )}
-                          {assignment.status !== 'suspended' && (
-                            <Button
-                              variant="icon"
-                              onClick={() => handleAssignmentStatus(assignment.id, 'suspended')}
-                              title="Suspend Assignment"
-                            >
-                              <UserX size={16} />
-                            </Button>
+                          {assignment.attributes.status !== 'pending' && (
+                            <>
+                              {assignment.attributes.status !== 'active' && (
+                                <Button
+                                  variant="icon"
+                                  onClick={() => handleAssignmentStatus(assignment.id, 'active')}
+                                  title="Activate Assignment"
+                                >
+                                  <UserCheck size={16} />
+                                </Button>
+                              )}
+                              {assignment.attributes.status !== 'inactive' && (
+                                <Button
+                                  variant="icon"
+                                  onClick={() => handleAssignmentStatus(assignment.id, 'inactive')}
+                                  title="Deactivate Assignment"
+                                >
+                                  <UserX size={16} />
+                                </Button>
+                              )}
+                              <Button
+                                variant="icon"
+                                onClick={() => handleEditAssignment(assignment)}
+                                title="Edit Assignment"
+                              >
+                                <Edit size={16} />
+                              </Button>
+                              <Button
+                                variant="icon"
+                                onClick={() => handleDeleteAssignment(assignment.id)}
+                                title="Delete Assignment"
+                              >
+                                <Trash size={16} />
+                              </Button>
+                            </>
                           )}
-                          <Button
-                            variant="icon"
-                            onClick={() => handleEditAssignment(assignment)}
-                            title="Edit Assignment"
-                          >
-                            <Edit size={16} />
-                          </Button>
-                          <Button
-                            variant="icon"
-                            onClick={() => handleDeleteAssignment(assignment.id)}
-                            title="Delete Assignment"
-                          >
-                            <Trash size={16} />
-                          </Button>
                         </td>
                       </tr>
                     ))}
@@ -492,7 +481,7 @@ export const ServerAssignment = () => {
                 {pagination.totalPages > 1 && (
                   <div className="server-assignment__pagination">
                     <Button 
-                      variant="outline" 
+                      variant="secondary" 
                       size="small"
                       disabled={pagination.currentPage === 1}
                       onClick={() => handlePageChange(pagination.currentPage - 1)}
@@ -503,7 +492,7 @@ export const ServerAssignment = () => {
                       Page {pagination.currentPage} of {pagination.totalPages}
                     </span>
                     <Button 
-                      variant="outline" 
+                      variant="secondary" 
                       size="small"
                       disabled={pagination.currentPage === pagination.totalPages}
                       onClick={() => handlePageChange(pagination.currentPage + 1)}
@@ -544,7 +533,7 @@ export const ServerAssignment = () => {
                   <option value="">Select User</option>
                   {users.map(user => (
                     <option key={user.id} value={user.id}>
-                      {user.name} ({user.email})
+                      {user.attributes.username} ({user.attributes.email})
                     </option>
                   ))}
                 </select>
@@ -560,14 +549,11 @@ export const ServerAssignment = () => {
                   className="server-assignment__select"
                 >
                   <option value="">Select Server</option>
-                  {servers
-                    .filter(server => server.status === 'active')
-                    .map(server => (
-                      <option key={server.id} value={server.id}>
-                        {server.name} ({server.location})
-                      </option>
-                    ))
-                  }
+                  {servers.map(server => (
+                    <option key={server.id} value={server.id}>
+                      {server.attributes.name} ({server.attributes.description || server.attributes.ip_address})
+                    </option>
+                  ))}
                 </select>
               </div>
               <div className="server-assignment__form-group">
@@ -581,9 +567,40 @@ export const ServerAssignment = () => {
                   className="server-assignment__select"
                 >
                   <option value="active">Active</option>
-                  <option value="suspended">Suspended</option>
+                  <option value="inactive">Inactive</option>
                   <option value="expired">Expired</option>
+                  <option value="pending">Pending</option>
                 </select>
+              </div>
+              <div className="server-assignment__form-group">
+                <div className="server-assignment__checkbox-group">
+                  <input
+                    type="checkbox"
+                    id="is_premium"
+                    name="is_premium"
+                    checked={formData.is_premium}
+                    onChange={handleFormChange}
+                    className="server-assignment__checkbox"
+                  />
+                  <label htmlFor="is_premium" className="server-assignment__checkbox-label">
+                    Premium Assignment
+                  </label>
+                </div>
+              </div>
+              <div className="server-assignment__form-group">
+                <div className="server-assignment__checkbox-group">
+                  <input
+                    type="checkbox"
+                    id="is_public"
+                    name="is_public"
+                    checked={formData.is_public}
+                    onChange={handleFormChange}
+                    className="server-assignment__checkbox"
+                  />
+                  <label htmlFor="is_public" className="server-assignment__checkbox-label">
+                    Public Assignment
+                  </label>
+                </div>
               </div>
               <div className="server-assignment__form-group">
                 <Input
@@ -592,7 +609,6 @@ export const ServerAssignment = () => {
                   name="expires_at"
                   value={formData.expires_at}
                   onChange={handleFormChange}
-                  required
                 />
               </div>
               <div className="server-assignment__form-group">
@@ -611,7 +627,6 @@ export const ServerAssignment = () => {
                   variant="secondary" 
                   type="button" 
                   onClick={() => setIsModalOpen(false)}
-                  disabled={loading}
                 >
                   Cancel
                 </Button>

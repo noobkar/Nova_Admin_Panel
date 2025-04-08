@@ -1,0 +1,38 @@
+@import '../../../styles/variables';
+@import '../../../styles/mixins';
+
+.empty-state {
+  @include flex(column, center, center);
+  padding: $spacing-xl;
+  text-align: center;
+  min-height: 200px;
+  
+  &__icon {
+    margin-bottom: $spacing-md;
+    
+    .theme-dark & {
+      color: $text-muted-dark;
+    }
+    
+    .theme-light & {
+      color: $text-muted-light;
+    }
+  }
+  
+  &__message {
+    font-size: $font-size-lg;
+    margin-bottom: $spacing-lg;
+    
+    .theme-dark & {
+      color: $text-muted-dark;
+    }
+    
+    .theme-light & {
+      color: $text-muted-light;
+    }
+  }
+  
+  &__action {
+    margin-top: $spacing-md;
+  }
+}

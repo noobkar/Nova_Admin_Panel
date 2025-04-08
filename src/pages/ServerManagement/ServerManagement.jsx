@@ -1,24 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useNavigation } from '../../hooks/useNavigation';
-import { getApiData, mockApi, apiService } from '../../services/api';
+import { Edit, Trash, Power, X, Search, AlertTriangle, Tool, Server } from 'react-feather';
+import { useApi } from '../../hooks/useApi';
 import { Card } from '../../components/common/Card/Card';
 import { Button } from '../../components/common/Button/Button';
 import { Input } from '../../components/common/Input/Input';
-import { Edit, Trash, Power, X, Search, AlertCircle } from 'react-feather';
+import { Loading } from '../../components/common/Loading/Loading';
+import { EmptyState } from '../../components/common/EmptyState/EmptyState';
+import { ErrorMessage } from '../../components/common/ErrorMessage/ErrorMessage';
 import './ServerManagement.scss';
 
 export const ServerManagement = () => {
-  const navigate = useNavigate();
-  const { setCurrentPage } = useNavigation();
-  
+  // State
   const [servers, setServers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentServer, setCurrentServer] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [pagination, setPagination] = useState({
     currentPage: 1,
     totalPages: 1,
@@ -36,73 +33,65 @@ export const ServerManagement = () => {
     image: null
   });
 
-  useEffect(() => {
-    // Set the current page for navigation context
-    setCurrentPage('Server Management');
-    fetchServers();
-  }, [setCurrentPage, selectedStatus]);
+  // Hooks
+  const { 
+    loading, 
+    error, 
+    fetchServers,
+    fetchServerDetails,
+    createServer,
+    updateServer,
+    deleteServer
+  } = useApi();
 
-  const fetchServers = async (page = 1) => {
-    setLoading(true);
+  // Load servers on mount and when filters change
+  useEffect(() => {
+    loadServers(pagination.currentPage);
+  }, [selectedStatus]);
+
+  // Load servers function
+  const loadServers = async (page = 1) => {
     try {
-      const params = {
-        page,
-        perPage: 10,
-        status: selectedStatus !== 'all' ? selectedStatus : undefined
-      };
+      const data = await fetchServers(page, 10, selectedStatus !== 'all' ? selectedStatus : null);
       
-      const response = await getApiData('/admin/servers', mockApi.getServers, params);
-      
-      // Extract server data and transform if necessary
-      let serverData = [];
-      let paginationData = { currentPage: 1, totalPages: 1, totalCount: 0 };
-      
-      if (response && response.data && Array.isArray(response.data)) {
-        // Format from the API with data array and pagination in meta
-        serverData = response.data.map(server => ({
-          id: server.id,
-          name: server.attributes.name,
-          description: server.attributes.description,
-          status: server.attributes.status,
-          server_type: server.attributes.server_type,
-          ip_address: server.attributes.ip_address,
-          created_at: server.attributes.created_at,
-          updated_at: server.attributes.updated_at,
-          image: server.attributes.image?.url || null,
-          config: server.attributes.config
-        }));
+      if (data && data.data) {
+        setServers(data.data);
         
-        if (response.meta) {
-          paginationData = {
-            currentPage: response.meta.current_page,
-            totalPages: response.meta.total_pages,
-            totalCount: response.meta.total_count
-          };
+        if (data.meta) {
+          setPagination({
+            currentPage: data.meta.current_page,
+            totalPages: data.meta.total_pages,
+            totalCount: data.meta.total_count
+          });
         }
-      } else if (Array.isArray(response)) {
-        // Simple array format (likely from mock data)
-        serverData = response;
+      } else {
+        setServers([]);
       }
-      
-      setServers(serverData);
-      setPagination(paginationData);
-      setError(null);
     } catch (err) {
-      console.error('Error fetching servers:', err);
-      setError('Failed to load servers data');
-    } finally {
-      setLoading(false);
+      console.error('Error loading servers:', err);
     }
   };
 
+  // Search handling
   const handleSearch = (e) => {
     setSearchTerm(e.target.value);
   };
+  
+  // Apply search with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      loadServers(1); // Reset to first page on search
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [searchTerm]);
 
+  // Status filter handling
   const handleStatusFilter = (status) => {
     setSelectedStatus(status);
   };
 
+  // Add server
   const handleAddServer = () => {
     setCurrentServer(null);
     setFormData({
@@ -119,165 +108,134 @@ export const ServerManagement = () => {
     setIsModalOpen(true);
   };
 
+  // Edit server
   const handleEditServer = async (server) => {
-    setLoading(true);
     try {
-      // For edit, we want to fetch the complete server details
-      const serverDetails = await getApiData(`/admin/servers/${server.id}`, 
-        () => ({ data: { attributes: server } }),
-        { serverId: server.id }
-      );
+      const serverData = await fetchServerDetails(server.id);
       
-      const serverData = serverDetails.attributes || serverDetails;
-      
-      setCurrentServer(serverData);
-      setFormData({
-        name: serverData.name,
-        description: serverData.description || '',
-        server_type: serverData.server_type || 'free',
-        status: serverData.status,
-        ip_address: serverData.ip_address || '',
-        config_type: serverData.config?.type || 'url',
-        config_url: serverData.config?.url || '',
-        config_file: null, // Cannot pre-load files
-        image: null // Cannot pre-load files
-      });
-      setIsModalOpen(true);
+      if (serverData) {
+        setCurrentServer(serverData.data);
+        const attributes = serverData.data.attributes;
+        
+        setFormData({
+          name: attributes.name || '',
+          description: attributes.description || '',
+          server_type: attributes.server_type || 'free',
+          status: attributes.status || 'active',
+          ip_address: attributes.ip_address || '',
+          config_type: attributes.config?.type || 'url',
+          config_url: attributes.config?.url || '',
+          config_file: null, // Can't pre-fill file inputs
+          image: null // Can't pre-fill file inputs
+        });
+        setIsModalOpen(true);
+      }
     } catch (err) {
-      console.error('Error fetching server details:', err);
-      alert('Failed to load server details for editing');
-    } finally {
-      setLoading(false);
+      console.error('Error loading server details:', err);
     }
   };
 
+  // Delete server
   const handleDeleteServer = async (id) => {
-    if (window.confirm('Are you sure you want to delete this server? This will remove all server assignments.')) {
-      setLoading(true);
+    if (window.confirm('Are you sure you want to delete this server? All associated assignments will be removed.')) {
       try {
-        await getApiData(`/admin/servers/${id}/delete`, () => {}, { serverId: id });
-        
-        // Remove the server from the UI
-        setServers(servers.filter(server => server.id !== id));
-        alert('Server deleted successfully');
+        await deleteServer(id);
+        loadServers(pagination.currentPage);
       } catch (err) {
         console.error('Error deleting server:', err);
-        alert('Failed to delete server');
-      } finally {
-        setLoading(false);
       }
     }
   };
 
+  // Update server status
   const handleServerStatus = async (id, newStatus) => {
-    setLoading(true);
     try {
-      const server = servers.find(s => s.id === id);
-      if (!server) throw new Error('Server not found');
+      const serverToUpdate = servers.find(server => server.id === id);
+      if (!serverToUpdate) return;
       
-      const updatedData = {
+      await updateServer(id, {
+        ...serverToUpdate.attributes,
         status: newStatus
-      };
-      
-      await getApiData(`/admin/servers/${id}/update`, () => {}, { 
-        serverId: id,
-        serverData: updatedData
       });
       
-      // Update the server status in the UI
-      setServers(servers.map(server => 
-        server.id === id 
-          ? { ...server, status: newStatus } 
-          : server
-      ));
+      loadServers(pagination.currentPage);
     } catch (err) {
       console.error('Error updating server status:', err);
-      alert('Failed to update server status');
-    } finally {
-      setLoading(false);
     }
   };
 
+  // Form change handler
   const handleFormChange = (e) => {
     const { name, value, files } = e.target;
     
-    if (name === 'config_file' && files) {
+    if (name === 'config_file' && files && files.length > 0) {
       setFormData(prev => ({
         ...prev,
-        config_file: files[0] || null,
-        config_type: files[0] ? 'file' : prev.config_type
+        config_file: files[0],
+        config_type: 'file'
       }));
-    } else if (name === 'image' && files) {
+    } else if (name === 'image' && files && files.length > 0) {
       setFormData(prev => ({
         ...prev,
-        image: files[0] || null
+        image: files[0]
       }));
     } else {
-      setFormData(prev => ({
-        ...prev,
-        [name]: value
-      }));
+      setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
 
+  // Form submit handler
   const handleFormSubmit = async (e) => {
     e.preventDefault();
     
-    const isEditing = !!currentServer;
-    setLoading(true);
-    
     try {
-      const formDataToSend = {
-        name: formData.name,
-        description: formData.description,
-        server_type: formData.server_type,
-        status: formData.status,
-        ip_address: formData.ip_address,
-        config_type: formData.config_type
-      };
+      // Create FormData for multipart/form-data requests
+      const serverFormData = new FormData();
       
-      // Add the appropriate config field based on config_type
-      if (formData.config_type === 'url') {
-        formDataToSend.config_url = formData.config_url;
-      } else if (formData.config_type === 'file' && formData.config_file) {
-        formDataToSend.config_file = formData.config_file;
-      }
-      
-      // Add image if present
-      if (formData.image) {
-        formDataToSend.image = formData.image;
-      }
-      
-      if (isEditing) {
-        // Edit existing server
-        await getApiData(`/admin/servers/${currentServer.id}/update`, () => {}, {
-          serverId: currentServer.id,
-          serverData: formDataToSend
-        });
+      // Add form fields
+      Object.keys(formData).forEach(key => {
+        // Only add config_url if config_type is url
+        if (key === 'config_url' && formData.config_type !== 'url') {
+          return;
+        }
         
-        alert('Server updated successfully');
+        // Only add config_file if config_type is file and there's a file
+        if (key === 'config_file' && (formData.config_type !== 'file' || !formData.config_file)) {
+          return;
+        }
+        
+        // Only add image if there's a file
+        if (key === 'image' && !formData.image) {
+          return;
+        }
+        
+        // Add the field
+        serverFormData.append(key, formData[key]);
+      });
+      
+      if (currentServer) {
+        // Update existing server
+        await updateServer(currentServer.id, serverFormData);
       } else {
-        // Add new server
-        await getApiData('/admin/servers/create', () => {}, {
-          serverData: formDataToSend
-        });
-        
-        alert('Server created successfully');
+        // Create new server
+        await createServer(serverFormData);
       }
       
-      // Close modal and refresh the server list
       setIsModalOpen(false);
-      fetchServers();
+      loadServers(pagination.currentPage);
     } catch (err) {
       console.error('Error saving server:', err);
-      alert(`Failed to ${isEditing ? 'update' : 'create'} server`);
-    } finally {
-      setLoading(false);
     }
   };
 
+  // Pagination handler
+  const handlePageChange = (page) => {
+    loadServers(page);
+  };
+
+  // Format date for display
   const formatDate = (dateString) => {
-    if (!dateString) return 'Not available';
+    if (!dateString) return 'N/A';
     const date = new Date(dateString);
     return date.toLocaleDateString('en-US', { 
       year: 'numeric', 
@@ -286,23 +244,24 @@ export const ServerManagement = () => {
     });
   };
 
-  // Filter servers based on search term
+  // Filter servers for search
   const filteredServers = servers.filter(server => {
-    return server.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
-           server.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-           server.ip_address?.toLowerCase().includes(searchTerm.toLowerCase());
+    return server.attributes.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           (server.attributes.description && server.attributes.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+           server.attributes.ip_address.toLowerCase().includes(searchTerm.toLowerCase());
   });
-
-  const handlePageChange = (page) => {
-    fetchServers(page);
-  };
 
   return (
     <div className="server-management">
       <Card>
         <div className="server-management__header">
           <h2 className="server-management__title">Server Management</h2>
-          <Button onClick={handleAddServer} variant="primary">Add Server</Button>
+          <Button 
+            variant="primary" 
+            onClick={handleAddServer}
+          >
+            Add Server
+          </Button>
         </div>
         
         <div className="server-management__filters">
@@ -318,28 +277,28 @@ export const ServerManagement = () => {
           
           <div className="server-management__status-filters">
             <Button 
-              variant={selectedStatus === 'all' ? 'primary' : 'outline'}
+              variant={selectedStatus === 'all' ? 'primary' : 'secondary'}
               size="small"
               onClick={() => handleStatusFilter('all')}
             >
               All
             </Button>
             <Button 
-              variant={selectedStatus === 'active' ? 'primary' : 'outline'}
+              variant={selectedStatus === 'active' ? 'primary' : 'secondary'}
               size="small"
               onClick={() => handleStatusFilter('active')}
             >
               Active
             </Button>
             <Button 
-              variant={selectedStatus === 'maintenance' ? 'primary' : 'outline'}
+              variant={selectedStatus === 'maintenance' ? 'primary' : 'secondary'}
               size="small"
               onClick={() => handleStatusFilter('maintenance')}
             >
               Maintenance
             </Button>
             <Button 
-              variant={selectedStatus === 'inactive' ? 'primary' : 'outline'} 
+              variant={selectedStatus === 'inactive' ? 'primary' : 'secondary'} 
               size="small"
               onClick={() => handleStatusFilter('inactive')}
             >
@@ -349,18 +308,27 @@ export const ServerManagement = () => {
         </div>
         
         {loading ? (
-          <div className="server-management__loading">
-            <AlertCircle size={20} />
-            <span>Loading servers...</span>
-          </div>
+          <Loading message="Loading servers..." />
         ) : error ? (
-          <div className="server-management__error">{error}</div>
+          <ErrorMessage 
+            message={error} 
+            retryAction={() => loadServers(pagination.currentPage)}
+          />
         ) : (
           <div className="server-management__table-container">
             {filteredServers.length === 0 ? (
-              <div className="server-management__empty">
-                No servers match your search criteria.
-              </div>
+              <EmptyState 
+                message="No servers found. Try adjusting your search or filters."
+                icon={Server}
+                action={
+                  <Button 
+                    variant="primary" 
+                    onClick={handleAddServer}
+                  >
+                    Add Server
+                  </Button>
+                }
+              />
             ) : (
               <>
                 <table className="server-management__table">
@@ -379,28 +347,28 @@ export const ServerManagement = () => {
                       <tr key={server.id}>
                         <td>
                           <div className="server-management__server-name">
-                            {server.name}
-                            {server.description && (
-                              <span className="server-management__server-description">
-                                {server.description}
-                              </span>
+                            {server.attributes.name}
+                            {server.attributes.description && (
+                              <div className="server-management__server-description">
+                                {server.attributes.description}
+                              </div>
                             )}
                           </div>
                         </td>
                         <td>
-                          <span className={`server-management__type server-management__type--${server.server_type}`}>
-                            {server.server_type === 'premium' ? 'Premium' : 'Free'}
+                          <span className={`server-management__type server-management__type--${server.attributes.server_type}`}>
+                            {server.attributes.server_type === 'premium' ? 'Premium' : 'Free'}
                           </span>
                         </td>
                         <td>
-                          <span className={`server-management__status server-management__status--${server.status}`}>
-                            {server.status}
+                          <span className={`server-management__status server-management__status--${server.attributes.status}`}>
+                            {server.attributes.status}
                           </span>
                         </td>
-                        <td>{server.ip_address}</td>
-                        <td>{formatDate(server.created_at)}</td>
+                        <td>{server.attributes.ip_address}</td>
+                        <td>{formatDate(server.attributes.created_at)}</td>
                         <td className="server-management__actions">
-                          {server.status !== 'active' && (
+                          {server.attributes.status !== 'active' && (
                             <Button
                               variant="icon"
                               onClick={() => handleServerStatus(server.id, 'active')}
@@ -409,22 +377,22 @@ export const ServerManagement = () => {
                               <Power size={16} />
                             </Button>
                           )}
-                          {server.status !== 'maintenance' && (
+                          {server.attributes.status !== 'maintenance' && (
                             <Button
                               variant="icon"
                               onClick={() => handleServerStatus(server.id, 'maintenance')}
                               title="Set to Maintenance"
                             >
-                              <AlertCircle size={16} />
+                              <Tool size={16} />
                             </Button>
                           )}
-                          {server.status !== 'inactive' && (
+                          {server.attributes.status !== 'inactive' && (
                             <Button
                               variant="icon"
                               onClick={() => handleServerStatus(server.id, 'inactive')}
                               title="Deactivate Server"
                             >
-                              <Power size={16} />
+                              <AlertTriangle size={16} />
                             </Button>
                           )}
                           <Button
@@ -450,7 +418,7 @@ export const ServerManagement = () => {
                 {pagination.totalPages > 1 && (
                   <div className="server-management__pagination">
                     <Button 
-                      variant="outline" 
+                      variant="secondary" 
                       size="small"
                       disabled={pagination.currentPage === 1}
                       onClick={() => handlePageChange(pagination.currentPage - 1)}
@@ -461,7 +429,7 @@ export const ServerManagement = () => {
                       Page {pagination.currentPage} of {pagination.totalPages}
                     </span>
                     <Button 
-                      variant="outline" 
+                      variant="secondary" 
                       size="small"
                       disabled={pagination.currentPage === pagination.totalPages}
                       onClick={() => handlePageChange(pagination.currentPage + 1)}
@@ -610,7 +578,6 @@ export const ServerManagement = () => {
                   variant="secondary" 
                   type="button" 
                   onClick={() => setIsModalOpen(false)}
-                  disabled={loading}
                 >
                   Cancel
                 </Button>
@@ -629,3 +596,5 @@ export const ServerManagement = () => {
     </div>
   );
 };
+
+export default ServerManagement;

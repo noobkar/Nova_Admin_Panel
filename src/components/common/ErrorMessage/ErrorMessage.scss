@@ -1,0 +1,26 @@
+@import '../../../styles/variables';
+@import '../../../styles/mixins';
+
+.error-message {
+  @include flex(column, center, center);
+  padding: $spacing-xl;
+  text-align: center;
+  min-height: 200px;
+  
+  &__icon {
+    margin-bottom: $spacing-md;
+    color: $error-color;
+  }
+  
+  &__text {
+    font-size: $font-size-lg;
+    margin-bottom: $spacing-lg;
+    color: $error-color;
+  }
+  
+  &__retry {
+    @include button-secondary;
+    margin-top: $spacing-md;
+    font-size: $font-size-sm;
+  }
+}

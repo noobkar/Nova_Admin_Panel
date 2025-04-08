@@ -20,19 +20,23 @@
       margin-right: $spacing-md;
       
       &--total {
-        background: linear-gradient(135deg, #22d3ee, #0ea5e9);
+        background-color: rgba($accent-color, 0.1);
+        color: $accent-color;
       }
       
       &--pending {
-        background: linear-gradient(135deg, #fbbf24, #f59e0b);
+        background-color: rgba($warning-color, 0.1);
+        color: $warning-color;
       }
       
-      &--paid {
-        background: linear-gradient(135deg, #34d399, #10b981);
+      &--approved {
+        background-color: rgba($success-color, 0.1);
+        color: $success-color;
       }
       
-      &--affiliates {
-        background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+      &--rejected {
+        background-color: rgba($error-color, 0.1);
+        color: $error-color;
       }
     }
     
@@ -73,9 +77,14 @@
     gap: $spacing-md;
   }
 
+  &__search {
+    min-width: 250px;
+  }
+
   &__status-filters {
     @include flex(row, flex-start, center);
     gap: $spacing-xs;
+    flex-wrap: wrap;
   }
 
   &__period {
@@ -88,16 +97,8 @@
     }
   }
 
-  &__loading,
-  &__error,
-  &__empty {
-    @include flex-center;
-    height: 200px;
-    text-align: center;
-  }
-
-  &__error {
-    color: $error-color;
+  &__rotate-45 {
+    transform: rotate(45deg);
   }
 
   &__table-container {
@@ -141,40 +142,209 @@
     }
   }
 
+  &__affiliate {
+    @include flex(column, flex-start, flex-start);
+    gap: $spacing-xs;
+    
+    &-name {
+      font-weight: 500;
+    }
+    
+    &-email {
+      font-size: $font-size-xs;
+      
+      .theme-dark & {
+        color: $text-muted-dark;
+      }
+      
+      .theme-light & {
+        color: $text-muted-light;
+      }
+    }
+  }
+
+  &__amount {
+    font-weight: 600;
+  }
+
+  &__type {
+    display: inline-block;
+    padding: $spacing-xs $spacing-sm;
+    border-radius: $border-radius-full;
+    font-size: $font-size-xs;
+    font-weight: 500;
+    
+    .theme-dark & {
+      background-color: rgba(255, 255, 255, 0.1);
+      color: $text-light;
+    }
+    
+    .theme-light & {
+      background-color: rgba(0, 0, 0, 0.05);
+      color: $text-dark;
+    }
+  }
+
   &__status {
     display: inline-block;
     padding: $spacing-xs $spacing-sm;
     border-radius: $border-radius-full;
     font-size: $font-size-xs;
     font-weight: 500;
-    text-transform: capitalize;
     
     &--pending {
       background-color: rgba($warning-color, 0.1);
       color: $warning-color;
     }
     
-    &--paid {
+    &--approved {
       background-color: rgba($success-color, 0.1);
       color: $success-color;
     }
-  }
-
-  &__transaction {
-    font-family: $font-family-mono;
-    font-size: $font-size-xs;
     
-    .theme-dark & {
-      color: $text-muted-light;
-    }
-    
-    .theme-light & {
-      color: $text-muted-dark;
+    &--rejected {
+      background-color: rgba($error-color, 0.1);
+      color: $error-color;
     }
   }
 
   &__actions {
     @include flex(row, flex-start, center);
     gap: $spacing-xs;
+  }
+
+  &__pagination {
+    @include flex(row, center, center);
+    margin-top: $spacing-lg;
+    gap: $spacing-md;
+    
+    &-info {
+      font-size: $font-size-sm;
+      
+      .theme-dark & {
+        color: $text-muted-dark;
+      }
+      
+      .theme-light & {
+        color: $text-muted-light;
+      }
+    }
+  }
+
+  &__modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    @include flex-center;
+    background-color: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(2px);
+    z-index: 1000;
+  }
+
+  &__modal {
+    width: 100%;
+    max-width: 550px;
+    max-height: 90vh;
+    overflow-y: auto;
+    border-radius: $border-radius-lg;
+    padding: $spacing-xl;
+    
+    .theme-dark & {
+      background-color: $card-bg-dark;
+    }
+    
+    .theme-light & {
+      background-color: $card-bg-light;
+      box-shadow: $shadow-lg;
+    }
+  }
+
+  &__modal-header {
+    @include flex-between;
+    margin-bottom: $spacing-lg;
+    
+    h2 {
+      @include heading-3;
+    }
+  }
+
+  &__commission-details {
+    margin-bottom: $spacing-xl;
+    padding: $spacing-md;
+    border-radius: $border-radius-md;
+    
+    .theme-dark & {
+      background-color: rgba(255, 255, 255, 0.05);
+    }
+    
+    .theme-light & {
+      background-color: rgba(0, 0, 0, 0.02);
+    }
+  }
+
+  &__detail-row {
+    @include flex(row, flex-start, flex-start);
+    margin-bottom: $spacing-md;
+    
+    &:last-child {
+      margin-bottom: 0;
+    }
+  }
+
+  &__detail-label {
+    font-weight: 500;
+    width: 100px;
+    margin-right: $spacing-md;
+  }
+
+  &__detail-value {
+    flex: 1;
+  }
+
+  &__form-group {
+    margin-bottom: $spacing-lg;
+    
+    label {
+      display: block;
+      margin-bottom: $spacing-xs;
+      font-weight: 500;
+    }
+  }
+
+  &__textarea {
+    width: 100%;
+    padding: $spacing-md;
+    border-radius: $border-radius-md;
+    resize: vertical;
+    font-family: inherit;
+    font-size: $font-size-md;
+    
+    .theme-dark & {
+      background-color: rgba(255, 255, 255, 0.1);
+      border: 1px solid $border-dark;
+      color: $text-light;
+      
+      &:focus {
+        border-color: $accent-color;
+      }
+    }
+    
+    .theme-light & {
+      background-color: $bg-light;
+      border: 1px solid $border-light;
+      color: $text-dark;
+      
+      &:focus {
+        border-color: $accent-color;
+      }
+    }
+  }
+
+  &__form-actions {
+    @include flex(row, flex-end, center);
+    gap: $spacing-md;
+    margin-top: $spacing-lg;
   }
 }
